@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sales Tracker Pro</title>
+<style>
+:root{
+  --bg:#1a0812;--surface:#26101c;--s2:#321523;--s3:#3e1b2c;
+  --b:#612040;--b2:#7d2d52;
+  --t:#fff0f5;--t2:#dda0bb;--t3:#8a4a66;
+  --a:#e8185a;--a2:#c4124a;--adark:#9c0e3b;
+  --abg:rgba(232,24,90,.15);--abg2:rgba(232,24,90,.07);
+  /* white card surfaces */
+  --wc:#ffffff;--wct:#2d0f1e;--wct2:#7a3558;--wcb:#f5d5e4;
+  /* green */
+  --g:#16a34a;--gbg:rgba(22,163,74,.12);--gbr:rgba(22,163,74,.35);
+  /* red */
+  --r:#dc2626;--rbg:rgba(220,38,38,.12);--rbr:rgba(220,38,38,.35);
+  /* orange – balance due */
+  --o:#ea580c;--obg:rgba(234,88,12,.13);--obr:rgba(234,88,12,.35);
+  /* blue */
+  --bl:#2563eb;--blbg:rgba(37,99,235,.12);--blbr:rgba(37,99,235,.35);
+  --rad:10px;--radl:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;background:linear-gradient(135deg,#c4124a 0%,#9c0e3b 100%);display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:56px;box-shadow:0 2px 16px rgba(232,24,90,.4)}
+.nav-brand{font-size:15px;font-weight:800;color:#fff;letter-spacing:.3px}
+.nav-brand span{color:rgba(255,255,255,.6);font-weight:400;font-size:11px;display:block;margin-top:1px}
+.tab-bar{display:flex;gap:3px;background:rgba(255,255,255,.15);border-radius:9px;padding:3px}
+.tab{padding:5px 11px;border-radius:7px;border:none;background:none;color:rgba(255,255,255,.7);font-size:12px;cursor:pointer;font-weight:600;transition:all .15s}
+.tab.active{background:#fff;color:var(--a);font-weight:700}
+
+.page{display:none;padding:14px}
+.page.active{display:block}
+
+/* section label */
+.sec{font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1.3px;margin:18px 0 8px;display:flex;align-items:center;gap:7px}
+.sec:first-child{margin-top:0}
+.sec::after{content:'';flex:1;height:1px;background:var(--b)}
+
+/* CARD — dark */
+.card{background:var(--surface);border:1px solid var(--b);border-radius:var(--radl);padding:14px;margin-bottom:10px}
+/* CARD — white */
+.wcard{background:var(--wc);border:1px solid var(--wcb);border-radius:var(--radl);padding:14px;margin-bottom:10px;box-shadow:0 1px 6px rgba(232,24,90,.08)}
+.wcard label{color:var(--wct2)}
+.wcard input,.wcard textarea{background:#fdf0f5;border:1.5px solid var(--wcb);color:var(--wct)}
+.wcard input:focus,.wcard textarea:focus{border-color:var(--a);background:#fff}
+
+label{font-size:11px;color:var(--t2);display:block;margin-bottom:4px;margin-top:10px;font-weight:600}
+label:first-child{margin-top:0}
+input[type=text],input[type=number],input[type=tel],input[type=password],textarea{
+  width:100%;background:var(--s2);border:1.5px solid var(--b);border-radius:var(--rad);
+  padding:9px 12px;color:var(--t);font-size:14px;outline:none;transition:border-color .2s;font-family:inherit}
+input:focus,textarea:focus{border-color:var(--a);box-shadow:0 0 0 3px rgba(232,24,90,.1)}
+textarea{resize:vertical;min-height:54px}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+
+/* BUTTONS */
+.btn{padding:11px 16px;border-radius:var(--rad);border:none;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;width:100%}
+.btn-primary{background:linear-gradient(135deg,var(--a),var(--adark));color:#fff;box-shadow:0 2px 10px rgba(232,24,90,.4)}
+.btn-primary:active{transform:scale(.98);box-shadow:none}
+.btn-ghost{background:var(--s2);color:var(--t);border:1.5px solid var(--b)}
+.btn-ghost:active{background:var(--s3)}
+.btn-green{background:var(--gbg);color:var(--g);border:1.5px solid var(--gbr)}
+.btn-red{background:var(--rbg);color:var(--r);border:1.5px solid var(--rbr)}
+.btn-blue{background:var(--blbg);color:var(--bl);border:1.5px solid var(--blbr)}
+.btn-orange{background:var(--obg);color:var(--o);border:1.5px solid var(--obr)}
+.btn-sm{padding:6px 12px;font-size:12px;width:auto;border-radius:8px}
+
+/* CHIPS */
+.chip{display:inline-block;padding:7px 14px;background:var(--s2);border:1.5px solid var(--b);border-radius:20px;font-size:12px;color:var(--t2);margin:3px;cursor:pointer;user-select:none;transition:all .15s;font-weight:600}
+.chip.active{background:var(--a);border-color:var(--a);color:#fff;box-shadow:0 2px 8px rgba(232,24,90,.35)}
+.chip:active{transform:scale(.95)}
+
+/* PRODUCT PILLS */
+.prod-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.prod-pill{padding:9px 15px;background:var(--s3);border:1.5px solid var(--b2);border-radius:24px;font-size:13px;color:var(--t2);cursor:pointer;user-select:none;transition:all .15s;white-space:nowrap;font-weight:500}
+.prod-pill.sel{background:var(--a);border-color:var(--a);color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(232,24,90,.3)}
+.prod-pill:active{transform:scale(.94)}
+.prod-pill.add-new{border-style:dashed;color:var(--t3);font-size:12px;background:transparent}
+
+/* ITEM ROW */
+.item-row{background:var(--s2);border:1.5px solid var(--b);border-radius:var(--rad);padding:12px;margin-bottom:8px}
+.item-row-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.item-label{font-size:13px;font-weight:700;color:var(--a)}
+.rm-btn{background:var(--rbg);color:var(--r);border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-weight:600}
+
+/* DISCOUNT */
+.disc-box{background:var(--surface);border:1.5px solid var(--b);border-radius:var(--radl);padding:14px;margin-bottom:11px}
+.disc-type-tabs{display:flex;gap:0;background:var(--s3);border-radius:9px;padding:3px;margin-bottom:12px}
+.disc-tab{flex:1;padding:7px;border-radius:7px;border:none;background:none;color:var(--t2);font-size:12px;cursor:pointer;font-weight:600;text-align:center;transition:all .15s}
+.disc-tab.active{background:var(--a);color:#fff;box-shadow:0 2px 6px rgba(232,24,90,.35)}
+.disc-input-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.disc-symbol{font-size:20px;font-weight:800;color:var(--a);flex-shrink:0;width:22px;text-align:center}
+.disc-big-input{width:100%;background:var(--s3);border:2px solid var(--b2);border-radius:var(--rad);padding:12px 14px;color:var(--t);font-size:22px;font-weight:700;outline:none;transition:all .2s;text-align:center}
+.disc-big-input:focus{border-color:var(--a);box-shadow:0 0 0 3px rgba(232,24,90,.12)}
+.disc-result-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--s3);border-radius:var(--rad);margin-top:4px;border:1px solid var(--b)}
+.disc-result-lbl{font-size:11px;color:var(--t2);font-weight:600}
+.disc-result-val{font-size:14px;font-weight:700}
+
+/* PAID */
+.paid-box{background:var(--surface);border:1.5px solid var(--b);border-radius:var(--radl);padding:14px;margin-bottom:11px}
+.paid-big{width:100%;background:var(--s3);border:2px solid var(--b2);border-radius:var(--rad);padding:14px;color:var(--a);font-size:26px;font-weight:800;outline:none;transition:all .2s;text-align:center}
+.paid-big:focus{border-color:var(--a);box-shadow:0 0 0 3px rgba(232,24,90,.12)}
+.paid-hint{font-size:11px;color:var(--t3);text-align:center;margin-top:6px}
+.paid-adj-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--b)}
+.paid-adj-lbl{font-size:12px;color:var(--t2);font-weight:500}
+.paid-adj-val{font-size:13px;font-weight:700}
+
+/* TOTALS */
+.tot-bar{background:var(--surface);border:1.5px solid var(--b);border-radius:var(--radl);padding:14px;margin-bottom:11px}
+.tot-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.tot-row:last-child{margin-bottom:0}
+.tot-lbl{font-size:12px;color:var(--t2);font-weight:500}
+.tot-val{font-size:13px;font-weight:700}
+.tot-val.main{font-size:21px;color:var(--a);font-weight:800}
+.tot-val.profit{color:var(--g)}
+.tot-divider{height:1.5px;background:var(--b);margin:8px 0}
+
+/* PAYMENT */
+.pay-mode-tabs{display:flex;gap:0;background:var(--s3);border-radius:9px;padding:3px;margin-bottom:12px}
+.pay-mode-tab{flex:1;padding:8px;border-radius:7px;border:none;background:none;color:var(--t2);font-size:12px;cursor:pointer;font-weight:600;transition:all .15s;text-align:center}
+.pay-mode-tab.active{background:var(--a);color:#fff;box-shadow:0 2px 6px rgba(232,24,90,.3)}
+.pay-methods-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.pay-card{background:var(--s3);border:1.5px solid var(--b2);border-radius:var(--rad);padding:11px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px}
+.pay-card.on{border-color:var(--a);background:var(--abg);box-shadow:0 2px 8px rgba(232,24,90,.2)}
+.pay-card-icon{font-size:20px;flex-shrink:0}
+.pay-card-name{font-size:13px;font-weight:600;color:var(--t2)}
+.pay-card.on .pay-card-name{color:var(--a)}
+
+/* SPLIT ROWS */
+.split-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.split-icon{font-size:18px;width:24px;flex-shrink:0;text-align:center}
+.split-label{font-size:13px;color:var(--t2);flex:1;font-weight:500}
+.split-input{width:110px;flex-shrink:0;text-align:right}
+.split-status{font-size:12px;margin-top:6px;padding:8px 12px;border-radius:8px;display:none;font-weight:600}
+.split-status.warn{display:block;background:var(--rbg);color:var(--r);border:1px solid var(--rbr)}
+.split-status.ok{display:block;background:var(--gbg);color:var(--g);border:1px solid var(--gbr)}
+
+/* BALANCE DUE BOX */
+.balance-due-box{background:var(--obg);border:1.5px solid var(--obr);border-radius:var(--rad);padding:12px;margin-top:10px}
+.balance-due-title{font-size:11px;font-weight:700;color:var(--o);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.balance-due-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.balance-due-row:last-child{margin-bottom:0}
+.balance-due-lbl{font-size:12px;color:var(--t2);flex:1;font-weight:500}
+.balance-due-val{font-size:14px;font-weight:700;color:var(--o)}
+.balance-note-input{width:100%;background:var(--s3);border:1.5px solid var(--obr);border-radius:8px;padding:8px 11px;color:var(--t);font-size:13px;outline:none;margin-top:6px}
+.balance-note-input:focus{border-color:var(--o)}
+.balance-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-top:8px}
+.balance-toggle-box{width:20px;height:20px;border-radius:5px;border:2px solid var(--o);background:transparent;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.balance-toggle-box.checked{background:var(--o);border-color:var(--o)}
+.balance-toggle-box.checked::after{content:'✓';color:#fff;font-size:12px;font-weight:700}
+.balance-toggle-lbl{font-size:13px;color:var(--t2);font-weight:500}
+
+/* HISTORY */
+.hist-top-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+.hstat{background:var(--surface);border:1px solid var(--b);border-radius:var(--radl);padding:13px;text-align:center}
+.hstat-lbl{font-size:10px;color:var(--t3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.8px}
+.hstat-val{font-size:18px;font-weight:800}
+.hstat-val.pink{color:var(--a)}
+.hstat-val.green{color:var(--g)}
+
+.today-banner{border-radius:var(--radl);padding:14px 16px;margin-bottom:12px;background:linear-gradient(135deg,rgba(232,24,90,.18),rgba(232,24,90,.06));border:1.5px solid rgba(232,24,90,.35)}
+.today-banner-title{font-size:10px;color:var(--a);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:10px}
+
+.date-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--s2);border:1.5px solid var(--b);border-radius:var(--rad);margin-bottom:6px;margin-top:14px;cursor:pointer;user-select:none}
+.date-group-hdr:first-of-type{margin-top:0}
+.date-group-label{font-size:12px;font-weight:700;color:var(--t)}
+.date-group-meta{display:flex;gap:8px;align-items:center}
+.date-group-rev{font-size:13px;font-weight:700;color:var(--a)}
+.date-group-profit{font-size:12px;font-weight:700;color:var(--g);background:var(--gbg);padding:3px 8px;border-radius:12px;border:1px solid var(--gbr)}
+.date-group-chevron{font-size:11px;color:var(--t3);transition:transform .2s;margin-left:4px}
+.date-group-chevron.col{transform:rotate(-90deg)}
+
+.sale-card{background:var(--surface);border:1.5px solid var(--b);border-radius:var(--radl);padding:13px;margin-bottom:7px;cursor:pointer;transition:border-color .2s}
+.sale-card:hover{border-color:var(--a)}
+.sale-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px}
+.sale-id{font-size:10px;color:var(--t3)}
+.sale-amt{font-size:18px;font-weight:800;color:var(--a)}
+.sale-items-list{font-size:11px;color:var(--t2);margin-top:6px;border-top:1px solid var(--b);padding-top:7px}
+
+/* PROFIT BADGE */
+.pbadge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700}
+.pbadge.pos{background:var(--gbg);color:var(--g);border:1px solid var(--gbr)}
+.pbadge.neg{background:var(--rbg);color:var(--r);border:1px solid var(--rbr)}
+.pbadge.na{background:var(--s3);color:var(--t3)}
+/* BALANCE DUE BADGE */
+.dbadge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;background:var(--obg);color:var(--o);border:1px solid var(--obr)}
+
+/* DATE FILTER CHIPS */
+.dchip{display:inline-block;padding:7px 13px;background:var(--s2);border:1.5px solid var(--b);border-radius:20px;font-size:12px;color:var(--t2);cursor:pointer;user-select:none;transition:all .15s;font-weight:600;white-space:nowrap}
+.dchip.active{background:var(--a);border-color:var(--a);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.dchip:active{transform:scale(.95)}
+
+/* CODE TABLE */
+.code-table{width:100%;border-collapse:collapse;font-size:12px}
+.code-table th{color:var(--t3);font-size:10px;text-align:left;padding:5px 7px;border-bottom:1px solid var(--b)}
+.code-table td{padding:7px;border-bottom:1px solid var(--b);color:var(--t2)}
+.code-table td:first-child{color:var(--a);font-weight:700;font-family:monospace;font-size:13px}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:18px;width:100%;max-height:92vh;overflow-y:auto;border-top:2px solid var(--b)}
+.modal-handle{width:34px;height:4px;background:var(--b2);border-radius:2px;margin:0 auto 14px}
+
+/* PASSWORD LOCK SCREEN */
+.lock-screen{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.lock-icon{font-size:48px;margin-bottom:16px}
+.lock-title{font-size:20px;font-weight:800;color:var(--a);margin-bottom:6px}
+.lock-sub{font-size:13px;color:var(--t3);margin-bottom:28px;text-align:center}
+.lock-input{width:100%;max-width:280px;background:var(--s2);border:2px solid var(--b2);border-radius:var(--rad);padding:14px;color:var(--t);font-size:20px;font-weight:700;outline:none;text-align:center;letter-spacing:4px;margin-bottom:12px}
+.lock-input:focus{border-color:var(--a)}
+.lock-err{font-size:12px;color:var(--r);min-height:18px;margin-bottom:12px;text-align:center}
+
+/* OWNER BANNER */
+.owner-box{background:linear-gradient(135deg,rgba(232,24,90,.18),rgba(232,24,90,.06));border:1.5px solid rgba(232,24,90,.35);border-radius:var(--radl);padding:13px;margin-bottom:11px}
+.owner-box-title{font-size:10px;color:var(--a);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700}
+
+.empty{text-align:center;padding:44px 20px;color:var(--t3);font-size:14px}
+.empty-icon{font-size:34px;margin-bottom:10px;opacity:.4}
+.flex-row{display:flex;gap:8px;align-items:center}
+.f1{flex:1}
+.add-area{border:1.5px dashed var(--b2);border-radius:var(--rad);padding:13px;text-align:center;cursor:pointer;color:var(--t3);font-size:13px;margin-bottom:11px;transition:all .2s}
+.add-area:hover{border-color:var(--a);color:var(--a)}
+select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var(--rad);padding:9px 12px;color:var(--t);font-size:13px;outline:none;cursor:pointer}
+
+@media(min-width:600px){.page,.nav,.lock-screen{max-width:480px;margin-left:auto;margin-right:auto}.lock-screen{left:50%;transform:translateX(-50%);width:480px}}
+</style>
+</head>
+<body>
+
+<!-- ===== LOCK SCREEN ===== -->
+<div class="lock-screen" id="lock-screen">
+  <div class="lock-icon">🔐</div>
+  <div class="lock-title">History is Locked</div>
+  <div class="lock-sub">Enter your owner password to access<br>sales history &amp; profit data</div>
+  <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" maxlength="20"
+    oninput="lockErr('')" onkeydown="if(event.key==='Enter')unlockHistory()">
+  <div class="lock-err" id="lock-err"></div>
+  <button class="btn btn-primary" style="max-width:280px;width:100%" onclick="unlockHistory()">Unlock History</button>
+  <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="goToSaleFromLock()">← Back to Sale</button>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="main-app" style="display:none">
+
+<div class="nav">
+  <div class="nav-brand" id="nav-brand">SalesPro<span>Sales Tracker</span></div>
+  <div class="tab-bar">
+    <button class="tab active" id="tab-sale" onclick="goTab('sale',this)">Sale</button>
+    <button class="tab" id="tab-history" onclick="tryHistory(this)">History</button>
+    <button class="tab" id="tab-settings" onclick="goTab('settings',this)">Settings</button>
+  </div>
+</div>
+
+<!-- ===== SALE PAGE ===== -->
+<div class="page active" id="page-sale">
+
+  <div class="sec">Salesperson</div>
+  <div id="salesman-chips" style="margin-bottom:12px"></div>
+
+  <div class="sec">Customer</div>
+  <div class="card" style="padding:12px">
+    <div class="r2">
+      <div><label>Name (optional)</label><input type="text" id="cust-name" placeholder="Customer name"></div>
+      <div><label>Mobile (WhatsApp)</label><input type="tel" id="cust-mobile" placeholder="91xxxxxxxxxx"></div>
+    </div>
+  </div>
+
+  <div class="sec">Items Sold</div>
+  <div id="items-container"></div>
+  <div class="add-area" onclick="addItem()">+ Add Another Item</div>
+
+  <!-- DISCOUNT -->
+  <div class="sec">Discount</div>
+  <div class="disc-box">
+    <div class="disc-type-tabs">
+      <button class="disc-tab active" id="dt-none" onclick="setDiscType('none')">No Discount</button>
+      <button class="disc-tab" id="dt-pct" onclick="setDiscType('pct')">% Percent</button>
+      <button class="disc-tab" id="dt-amt" onclick="setDiscType('amt')">₹ Amount Off</button>
+    </div>
+    <div id="disc-none-msg" style="font-size:12px;color:var(--t3);text-align:center;padding:4px 0">Full price — no discount applied</div>
+    <div id="disc-pct-area" style="display:none">
+      <div class="disc-input-row">
+        <span class="disc-symbol">%</span>
+        <input class="disc-big-input" type="number" id="disc-pct-val" placeholder="0" min="0" max="100" oninput="calcAll()">
+      </div>
+      <div class="disc-result-row"><span class="disc-result-lbl">Discount amount</span><span class="disc-result-val" id="disc-pct-off" style="color:var(--r)">-₹0</span></div>
+      <div class="disc-result-row" style="margin-top:4px"><span class="disc-result-lbl">After discount</span><span class="disc-result-val" id="disc-pct-final" style="color:var(--a)">₹0</span></div>
+    </div>
+    <div id="disc-amt-area" style="display:none">
+      <div class="disc-input-row">
+        <span class="disc-symbol">₹</span>
+        <input class="disc-big-input" type="number" id="disc-amt-val" placeholder="0" min="0" oninput="calcAll()">
+      </div>
+      <div class="disc-result-row"><span class="disc-result-lbl">That equals</span><span class="disc-result-val" id="disc-amt-pct" style="color:var(--r)">0%</span></div>
+      <div class="disc-result-row" style="margin-top:4px"><span class="disc-result-lbl">After discount</span><span class="disc-result-val" id="disc-amt-final" style="color:var(--a)">₹0</span></div>
+    </div>
+  </div>
+
+  <!-- CUSTOMER PAID -->
+  <div class="sec">Customer Paid</div>
+  <div class="paid-box">
+    <div style="font-size:12px;font-weight:700;color:var(--t);margin-bottom:10px">Amount customer actually paid (₹)</div>
+    <input class="paid-big" type="number" id="paid-amount" placeholder="0" oninput="calcAll()">
+    <div class="paid-hint">Leave blank if same as discounted total</div>
+    <div id="paid-adj-section" style="display:none">
+      <div class="paid-adj-row"><span class="paid-adj-lbl">Bill after discount</span><span class="paid-adj-val" id="paid-adj-total">₹0</span></div>
+      <div class="paid-adj-row"><span class="paid-adj-lbl">Customer paid</span><span class="paid-adj-val" style="color:var(--a)" id="paid-adj-paid">₹0</span></div>
+      <div class="paid-adj-row" style="border-top:1.5px dashed var(--rbr);margin-top:4px;padding-top:12px">
+        <span class="paid-adj-lbl" id="paid-adj-diff-lbl" style="color:var(--r)">Extra discount</span>
+        <span class="paid-adj-val" id="paid-adj-diff" style="color:var(--r)">₹0</span>
+      </div>
+      <div style="margin-top:8px;padding:7px 10px;border-radius:8px;background:var(--s3)">
+        <span style="font-size:11px;color:var(--t3)" id="paid-adj-pct-lbl">Total effective discount</span>
+        <span style="font-size:13px;font-weight:700;color:var(--r);margin-left:8px" id="paid-adj-pct">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOTALS -->
+  <div class="tot-bar" id="total-bar" style="display:none">
+    <div class="tot-row"><span class="tot-lbl">Items total</span><span class="tot-val" id="sum-items">₹0</span></div>
+    <div class="tot-row" id="sum-disc-row" style="display:none"><span class="tot-lbl">Discount</span><span class="tot-val" id="sum-disc" style="color:var(--r)">-₹0</span></div>
+    <div class="tot-divider"></div>
+    <div class="tot-row"><span class="tot-lbl" style="font-weight:700;color:var(--t)">Final Amount</span><span class="tot-val main" id="sum-final">₹0</span></div>
+    <div id="profit-row" class="tot-row" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--gbr)">
+      <span class="tot-lbl" style="color:var(--g);font-size:11px">🔒 Gross Profit</span>
+      <span class="tot-val profit" id="sum-profit">₹0</span>
+    </div>
+  </div>
+
+  <!-- PAYMENT MODE -->
+  <div class="sec">Payment</div>
+  <div class="card" style="padding:12px">
+    <div class="pay-mode-tabs">
+      <button class="pay-mode-tab active" id="tab-single" onclick="setPayMode('single')">💳 Single</button>
+      <button class="pay-mode-tab" id="tab-split" onclick="setPayMode('split')">🔀 Split</button>
+      <button class="pay-mode-tab" id="tab-due" onclick="setPayMode('due')">⏳ Part + Due</button>
+    </div>
+
+    <!-- Single -->
+    <div id="pay-single">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:8px">Select payment method:</div>
+      <div class="pay-methods-grid" id="single-methods"></div>
+    </div>
+
+    <!-- Split -->
+    <div id="pay-split" style="display:none">
+      <div style="font-size:11px;color:var(--t2);margin-bottom:10px">Enter amount for each method used:</div>
+      <div id="split-rows"></div>
+      <div class="split-status" id="split-status"></div>
+    </div>
+
+    <!-- Part Payment + Balance Due -->
+    <div id="pay-due" style="display:none">
+      <div style="font-size:12px;color:var(--t2);margin-bottom:10px;font-weight:500">Customer pays part now, rest later</div>
+
+      <div class="r2" style="margin-bottom:10px">
+        <div>
+          <label>Paid Now (₹)</label>
+          <input type="number" id="due-paid-now" placeholder="0" oninput="calcDue()" style="font-size:16px;font-weight:700;color:var(--a);text-align:right">
+        </div>
+        <div>
+          <label>Method</label>
+          <select id="due-method" style="width:100%;background:var(--s2);border:1.5px solid var(--b);border-radius:var(--rad);padding:9px 12px;color:var(--t);font-size:13px;outline:none;cursor:pointer" onchange="renderDueMethodSelect()"></select>
+        </div>
+      </div>
+
+      <div class="balance-due-box">
+        <div class="balance-due-title">⏳ Balance Due from Customer</div>
+        <div class="balance-due-row">
+          <span class="balance-due-lbl">Total bill amount</span>
+          <span class="balance-due-val" id="due-total">₹0</span>
+        </div>
+        <div class="balance-due-row">
+          <span class="balance-due-lbl">Paid now</span>
+          <span style="font-size:14px;font-weight:700;color:var(--g)" id="due-paid-display">₹0</span>
+        </div>
+        <div class="balance-due-row" style="border-top:1.5px dashed var(--obr);margin-top:6px;padding-top:10px">
+          <span class="balance-due-lbl" style="color:var(--o);font-weight:700">Balance Due</span>
+          <span class="balance-due-val" id="due-balance">₹0</span>
+        </div>
+        <label style="color:var(--o);margin-top:10px">Due Reason / Note</label>
+        <input class="balance-note-input" type="text" id="due-note" placeholder="e.g. Balance after delivery, COD, 2nd installment on 15th Jan...">
+        <label style="color:var(--o);margin-top:8px">Expected Payment Date (optional)</label>
+        <input class="balance-note-input" type="text" id="due-date" placeholder="e.g. 15 Jan, On delivery, Next week...">
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:11px"><label>Note / Remarks</label><textarea id="sale-note" placeholder="Optional..."></textarea></div>
+  <button class="btn btn-primary" style="margin-bottom:8px" onclick="completeSale()">✓ Complete Sale</button>
+  <div class="r2" style="margin-bottom:24px">
+    <button class="btn btn-ghost btn-sm" onclick="previewBill()">👁 Preview Bill</button>
+    <button class="btn btn-ghost btn-sm" onclick="resetSale()">✕ Clear All</button>
+  </div>
+</div>
+
+<!-- ===== HISTORY PAGE ===== -->
+<div class="page" id="page-history">
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <button class="btn btn-ghost btn-sm" onclick="lockHistoryNow()">🔒 Lock History</button>
+  </div>
+
+  <div class="hist-top-grid">
+    <div class="hstat"><div class="hstat-lbl">Total Sales</div><div class="hstat-val pink" id="hist-count">0</div></div>
+    <div class="hstat"><div class="hstat-lbl">Total Revenue</div><div class="hstat-val pink" id="hist-revenue" style="font-size:14px">₹0</div></div>
+    <div class="hstat"><div class="hstat-lbl">🔒 Total Profit</div><div class="hstat-val green" id="hist-profit" style="font-size:14px">₹0</div></div>
+    <div class="hstat"><div class="hstat-lbl">Balance Due</div><div class="hstat-val" id="hist-due" style="font-size:14px;color:var(--o)">₹0</div></div>
+  </div>
+
+  <!-- Today banner -->
+  <div class="today-banner" id="today-banner" style="display:none">
+    <div class="today-banner-title">📅 Today's Summary</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div style="font-size:11px;color:var(--t2);margin-bottom:2px">Revenue</div><div style="font-size:18px;font-weight:800;color:var(--a)" id="today-revenue">₹0</div></div>
+      <div style="text-align:center"><div style="font-size:11px;color:var(--t2);margin-bottom:2px">Bills</div><div style="font-size:18px;font-weight:800;color:var(--t)" id="today-count">0</div></div>
+      <div style="text-align:right"><div style="font-size:11px;color:var(--g);margin-bottom:2px">🔒 Profit</div><div style="font-size:18px;font-weight:800;color:var(--g)" id="today-profit">₹0</div></div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(232,24,90,.4);display:flex;justify-content:space-between">
+      <span style="font-size:11px;color:var(--t2)">Discount given today</span>
+      <span style="font-size:12px;font-weight:700;color:var(--r)" id="today-disc">₹0</span>
+    </div>
+    <div style="margin-top:6px;display:flex;justify-content:space-between" id="today-due-row">
+      <span style="font-size:11px;color:var(--t2)">Balance due today</span>
+      <span style="font-size:12px;font-weight:700;color:var(--o)" id="today-due-amt">₹0</span>
+    </div>
+  </div>
+
+  <!-- DATE FILTER PILLS -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="date-filter-pills">
+    <span class="dchip active" id="df-all"     onclick="setDateFilter('all')">All Time</span>
+    <span class="dchip"        id="df-today"   onclick="setDateFilter('today')">Today</span>
+    <span class="dchip"        id="df-week"    onclick="setDateFilter('week')">This Week</span>
+    <span class="dchip"        id="df-month"   onclick="setDateFilter('month')">This Month</span>
+    <span class="dchip"        id="df-last30"  onclick="setDateFilter('last30')">Last 30 Days</span>
+    <span class="dchip"        id="df-custom"  onclick="setDateFilter('custom')">📅 Custom</span>
+  </div>
+
+  <!-- CUSTOM DATE RANGE (hidden by default) -->
+  <div id="custom-range-box" style="display:none;background:var(--s2);border:1.5px solid var(--b);border-radius:var(--rad);padding:12px;margin-bottom:10px">
+    <div style="font-size:11px;color:var(--t2);margin-bottom:8px;font-weight:600">Select date range:</div>
+    <div class="r2" style="gap:8px">
+      <div>
+        <label style="margin-top:0">From</label>
+        <input type="date" id="df-from" onchange="renderHistory()" style="color-scheme:dark">
+      </div>
+      <div>
+        <label style="margin-top:0">To</label>
+        <input type="date" id="df-to" onchange="renderHistory()" style="color-scheme:dark">
+      </div>
+    </div>
+    <div id="custom-range-label" style="font-size:11px;color:var(--a);margin-top:8px;font-weight:600"></div>
+  </div>
+
+  <!-- SEARCH + STAFF FILTER -->
+  <div style="margin-bottom:11px;display:flex;gap:8px">
+    <input type="text" placeholder="Search items, customer..." id="hist-search" style="flex:1" oninput="renderHistory()">
+    <select class="native" id="hist-filter" onchange="renderHistory()"></select>
+  </div>
+
+  <!-- FILTERED STATS BAR -->
+  <div id="filter-stats-bar" style="display:none;background:var(--abg2);border:1px solid var(--b);border-radius:var(--rad);padding:10px 14px;margin-bottom:11px">
+    <div style="font-size:10px;color:var(--a);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px" id="filter-stats-label">Filtered Results</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+      <div><div style="font-size:10px;color:var(--t3)">Bills</div><div style="font-size:16px;font-weight:800;color:var(--a)" id="fs-count">0</div></div>
+      <div><div style="font-size:10px;color:var(--t3)">Revenue</div><div style="font-size:13px;font-weight:700;color:var(--a)" id="fs-rev">₹0</div></div>
+      <div><div style="font-size:10px;color:var(--t3)">🔒 Profit</div><div style="font-size:13px;font-weight:700;color:var(--g)" id="fs-profit">₹0</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--b)">
+      <div><div style="font-size:10px;color:var(--t3)">Discount Given</div><div style="font-size:13px;font-weight:700;color:var(--r)" id="fs-disc">₹0</div></div>
+      <div><div style="font-size:10px;color:var(--t3)">Balance Due</div><div style="font-size:13px;font-weight:700;color:var(--o)" id="fs-due">₹0</div></div>
+    </div>
+  </div>
+
+  <div id="history-list"></div>
+</div>
+
+<!-- ===== SETTINGS PAGE ===== -->
+<div class="page" id="page-settings">
+
+  <div class="sec">Shop Info</div>
+  <div class="card">
+    <label>Shop Name</label><input type="text" id="set-shop-name" placeholder="Shop name">
+    <label>Address</label><textarea id="set-address" placeholder="Full address"></textarea>
+    <label>Owner Mobile (WhatsApp)</label>
+    <input type="tel" id="set-owner-mobile" placeholder="91xxxxxxxxxx">
+    <label>Owner Name</label><input type="text" id="set-owner-name" placeholder="Owner name">
+    <div style="margin-top:12px"><button class="btn btn-primary" onclick="saveShopInfo()">Save Shop Info</button></div>
+  </div>
+
+  <div class="sec">Salesmen</div>
+  <div class="card">
+    <div id="salesman-list-set"></div>
+    <div class="flex-row" style="margin-top:8px">
+      <input type="text" id="new-salesman" placeholder="Add name" class="f1">
+      <button class="btn btn-ghost btn-sm" onclick="addSalesman()">+ Add</button>
+    </div>
+  </div>
+
+  <div class="sec">Products / Items</div>
+  <div class="card">
+    <div style="font-size:11px;color:var(--t2);margin-bottom:8px">Appear as tap-to-select pills in the Sale screen.</div>
+    <div id="item-list-set"></div>
+    <div class="flex-row" style="margin-top:8px">
+      <input type="text" id="new-item" placeholder="Add product name" class="f1">
+      <button class="btn btn-ghost btn-sm" onclick="addProductItem()">+ Add</button>
+    </div>
+  </div>
+
+  <div class="sec">🔒 Cost Price Codes</div>
+  <div class="card">
+    <div style="font-size:12px;color:var(--t2);margin-bottom:11px;padding:9px;background:var(--abg2);border-radius:8px;border:1px solid rgba(232,24,90,.2)">
+      Map a short code to cost price. Example: <strong style="color:var(--a)">ATP = ₹205</strong> for Watch. Never shown on bill.
+    </div>
+    <label>Master Profit View Code</label>
+    <input type="text" id="set-profit-code" placeholder="e.g. SALEPROFIT">
+    <div style="height:1px;background:var(--b);margin:12px 0"></div>
+    <table class="code-table">
+      <thead><tr><th>Code</th><th>Product</th><th>Cost ₹</th><th></th></tr></thead>
+      <tbody id="code-table-body"></tbody>
+    </table>
+    <div style="margin-top:9px">
+      <div class="r3">
+        <input type="text" id="new-code" placeholder="Code">
+        <input type="text" id="new-code-product" placeholder="Product">
+        <input type="number" id="new-code-cost" placeholder="₹">
+      </div>
+      <button class="btn btn-ghost" style="margin-top:7px" onclick="addCostCode()">+ Add Code</button>
+    </div>
+    <div style="margin-top:11px"><button class="btn btn-primary" onclick="saveCostCodes()">Save Codes</button></div>
+  </div>
+
+  <div class="sec">Payment Methods</div>
+  <div class="card">
+    <div id="pay-methods-set"></div>
+    <div class="flex-row" style="margin-top:8px">
+      <input type="text" id="new-paymethod" placeholder="e.g. PhonePe, Cheque" class="f1">
+      <button class="btn btn-ghost btn-sm" onclick="addPayMethod()">+ Add</button>
+    </div>
+  </div>
+
+  <div class="sec">🎨 App Theme</div>
+  <div class="card" id="theme-card">
+    <!-- Dark / Light toggle -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--b)">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--t)">Mode</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px" id="mode-desc">Dark mode active</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">🌙</span>
+        <div id="mode-toggle" onclick="toggleMode()" style="width:52px;height:28px;border-radius:14px;background:var(--a);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+          <div id="mode-knob" style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>
+        </div>
+        <span style="font-size:18px">☀️</span>
+      </div>
+    </div>
+    <!-- Colour palette -->
+    <div style="font-size:12px;color:var(--t2);margin-bottom:12px;font-weight:600">Choose accent colour:</div>
+    <div id="theme-swatches" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
+  </div>
+
+  <div class="sec">Data</div>
+  <div class="card">
+    <button class="btn btn-red" onclick="clearHistory()">🗑 Clear All Sales History</button>
+  </div>
+</div>
+
+</div><!-- end main-app -->
+
+<!-- BILL MODAL -->
+<div class="modal-overlay" id="bill-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="bill-content"></div>
+    <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-green" onclick="sendWA('owner')">📲 Owner</button>
+      <button class="btn btn-blue" id="send-cust-btn" onclick="sendWA('customer')">💬 Customer</button>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="closeModal('bill-modal')">Close</button>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="detail-content"></div>
+    <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-green" onclick="resendWA('owner')">📲 Resend Owner</button>
+      <button class="btn btn-blue" id="resend-cust-btn" onclick="resendWA('customer')">💬 Resend Customer</button>
+    </div>
+    <button class="btn btn-red" style="margin-top:8px" onclick="deleteSale()">🗑 Delete Sale</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="closeModal('detail-modal')">Close</button>
+  </div>
+</div>
+
+<!-- QUICK ADD PRODUCT MODAL -->
+<div class="modal-overlay" id="addprod-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:14px">Add New Product</div>
+    <label>Product Name</label>
+    <input type="text" id="quick-prod-name" placeholder="e.g. Anklet, Pendant...">
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-primary" onclick="quickAddProduct()">Add &amp; Select</button>
+      <button class="btn btn-ghost" onclick="closeModal('addprod-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+let S = {
+  shopName:'SalesPro Store', address:'Your Shop Address',
+  ownerMobile:'', ownerName:'Owner',
+
+  profitCode:'SALEPROFIT',
+  salesmen:['Mahendra','Prakash Singh','Chandan Singh'],
+  products:['Watch','Ring','Necklace','Bracelet','Earrings','Bangles','Chain','Kada'],
+  costCodes:[{code:'ATP',product:'Watch',cost:205},{code:'BRX',product:'Ring',cost:150}],
+  payMethods:['Cash','UPI','Card','Bank Transfer']
+};
+let sales = [], currentItems = [], selSalesman = '';
+let discType = 'none';
+let payMode = 'single', selSingleMethod = 'Cash', splitAmounts = {};
+let viewingSaleId = null, currentBillSale = null, quickAddTargetId = null;
+let collapsedGroups = {};
+let histUnlocked = false;
+
+const PICONS = {Cash:'💵',UPI:'📱',Card:'💳','Bank Transfer':'🏦',PhonePe:'📲',GPay:'🔵',Cheque:'📝'};
+const picon = m => PICONS[m] || '💰';
+
+// ===================== PERSIST =====================
+function loadData() {
+  try {
+    const s = localStorage.getItem('spt6_s');
+    const sl = localStorage.getItem('spt6_sales');
+    if (s) S = {...S, ...JSON.parse(s)};
+    if (sl) sales = JSON.parse(sl);
+  } catch(e) {}
+  S.payMethods = S.payMethods || ['Cash','UPI','Card','Bank Transfer'];
+  selSalesman = S.salesmen[0] || '';
+}
+function saveS() { try { localStorage.setItem('spt6_s', JSON.stringify(S)); } catch(e) {} }
+function saveSales() { try { localStorage.setItem('spt6_sales', JSON.stringify(sales)); } catch(e) {} }
+
+// ===================== INIT =====================
+function init() {
+  loadData();
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('lock-screen').style.display = 'none';
+  updateNavBrand();
+  renderSalesmanChips();
+  addItem();
+  renderSingleMethods();
+  renderSplitRows();
+  renderDueMethodSelect();
+  renderHistoryStats();
+  renderHistory();
+  populateSettingsForm();
+  renderSettingSalesmen();
+  renderSettingProducts();
+  renderCodeTable();
+  renderPayMethodsSet();
+  renderSalesmanFilter();
+}
+
+function updateNavBrand() {
+  document.getElementById('nav-brand').childNodes[0].textContent = S.shopName;
+}
+
+// ===================== PASSWORD / LOCK =====================
+function getHistPass() {
+  return S.ownerMobile.trim();
+}
+
+function tryHistory(el) {
+  if (histUnlocked) { goTab('history', el); return; }
+  // Show lock screen
+  document.getElementById('lock-input').value = '';
+  document.getElementById('lock-err').textContent = '';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('lock-screen').style.display = 'flex';
+}
+
+function unlockHistory() {
+  const entered = document.getElementById('lock-input').value.trim();
+  const pass = getHistPass();
+  if (!pass) { // no password set — allow access
+    histUnlocked = true;
+    returnToHistory();
+    return;
+  }
+  if (entered === pass) {
+    histUnlocked = true;
+    returnToHistory();
+  } else {
+    lockErr('Wrong password. Try again.');
+    document.getElementById('lock-input').value = '';
+  }
+}
+
+function returnToHistory() {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  goTab('history', document.getElementById('tab-history'));
+}
+
+function lockHistoryNow() {
+  histUnlocked = false;
+  goTab('sale', document.getElementById('tab-sale'));
+}
+
+function lockErr(msg) { document.getElementById('lock-err').textContent = msg; }
+
+function goToSaleFromLock() {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  goTab('sale', document.getElementById('tab-sale'));
+}
+
+// ===================== TABS =====================
+function goTab(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  el.classList.add('active');
+  if (name === 'history') { renderHistoryStats(); renderHistory(); }
+  if (name === 'settings') { populateSettingsForm(); renderSettingSalesmen(); renderSettingProducts(); renderCodeTable(); renderPayMethodsSet(); renderThemeSwatches(); }
+}
+
+// ===================== SALESMAN =====================
+function renderSalesmanChips() {
+  document.getElementById('salesman-chips').innerHTML = S.salesmen.map(s =>
+    `<span class="chip ${s===selSalesman?'active':''}" onclick="selSalesmanFn('${s}')">${s}</span>`
+  ).join('');
+}
+function selSalesmanFn(n) { selSalesman = n; renderSalesmanChips(); }
+
+// ===================== ITEMS =====================
+let itemCtr = 0;
+function addItem() {
+  itemCtr++;
+  currentItems.push({id:'i'+itemCtr, product:'', itemCode:'', price:0, qty:1});
+  renderItems();
+}
+function removeItem(id) {
+  currentItems = currentItems.filter(x => x.id !== id);
+  if (!currentItems.length) addItem(); else renderItems();
+  calcAll();
+}
+function renderItems() {
+  document.getElementById('items-container').innerHTML = currentItems.map((item, idx) => `
+    <div class="item-row" id="row-${item.id}">
+      <div class="item-row-hdr">
+        <span class="item-label">Item ${idx+1}${item.product?' — '+item.product:''}</span>
+        ${currentItems.length>1?`<button class="rm-btn" onclick="removeItem('${item.id}')">✕ Remove</button>`:''}
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:7px">Select product:</div>
+      <div class="prod-grid">
+        ${S.products.map(p=>`<span class="prod-pill ${item.product===p?'sel':''}" onclick="selectProduct('${item.id}','${p}')">${p}</span>`).join('')}
+        <span class="prod-pill add-new" onclick="openQuickAdd('${item.id}')">+ New Item</span>
+      </div>
+      <div class="r2">
+        <div>
+          <label>Item Code (optional)</label>
+          <input type="text" placeholder="e.g. ATP" value="${item.itemCode}"
+            oninput="itemChg('${item.id}','itemCode',this.value.toUpperCase());this.value=this.value.toUpperCase()"
+            style="font-family:monospace;letter-spacing:1px;font-weight:700">
+        </div>
+        <div><label>Qty</label><input type="number" value="${item.qty}" min="1" oninput="itemChg('${item.id}','qty',+this.value||1)"></div>
+      </div>
+      <div style="margin-top:8px">
+        <label>Selling Price (₹)</label>
+        <input type="number" placeholder="0" value="${item.price||''}"
+          oninput="itemChg('${item.id}','price',+this.value)"
+          style="font-size:18px;font-weight:700;text-align:right;color:var(--a)">
+      </div>
+    </div>`).join('');
+}
+function selectProduct(id, p) {
+  const item = currentItems.find(x => x.id === id); if (!item) return;
+  item.product = p; renderItems(); calcAll();
+}
+function itemChg(id, f, v) {
+  const item = currentItems.find(x => x.id === id); if (!item) return;
+  item[f] = v;
+  if (f === 'price' || f === 'qty') calcAll();
+}
+function openQuickAdd(itemId) {
+  quickAddTargetId = itemId;
+  document.getElementById('quick-prod-name').value = '';
+  openModal('addprod-modal');
+  setTimeout(() => document.getElementById('quick-prod-name').focus(), 200);
+}
+function quickAddProduct() {
+  const val = document.getElementById('quick-prod-name').value.trim();
+  if (!val) { alert('Enter a product name'); return; }
+  if (!S.products.includes(val)) S.products.push(val);
+  saveS(); closeModal('addprod-modal');
+  if (quickAddTargetId) selectProduct(quickAddTargetId, val);
+  renderSettingProducts();
+}
+
+// ===================== DISCOUNT / CALC =====================
+function setDiscType(type) {
+  discType = type;
+  ['none','pct','amt'].forEach(t => document.getElementById('dt-'+t).classList.toggle('active', t===type));
+  document.getElementById('disc-none-msg').style.display = type==='none' ? '' : 'none';
+  document.getElementById('disc-pct-area').style.display = type==='pct' ? '' : 'none';
+  document.getElementById('disc-amt-area').style.display = type==='amt' ? '' : 'none';
+  calcAll();
+}
+function getItemsTotal() {
+  return currentItems.reduce((a, i) => a + (i.price||0)*(i.qty||1), 0);
+}
+function getDiscountedTotal() {
+  const base = getItemsTotal();
+  if (discType==='pct') { const p=parseFloat(document.getElementById('disc-pct-val').value)||0; return Math.max(0, base - base*(p/100)); }
+  if (discType==='amt') { const a=parseFloat(document.getElementById('disc-amt-val').value)||0; return Math.max(0, base - a); }
+  return base;
+}
+function getFinalAmount() {
+  const paid = parseFloat(document.getElementById('paid-amount').value);
+  if (!isNaN(paid) && paid > 0) return paid;
+  return getDiscountedTotal();
+}
+
+function calcAll() {
+  const base = getItemsTotal();
+  const afterDisc = getDiscountedTotal();
+  const paidRaw = parseFloat(document.getElementById('paid-amount').value);
+  const hasPaid = !isNaN(paidRaw) && paidRaw > 0;
+  const finalAmt = hasPaid ? paidRaw : afterDisc;
+  const discAmt = base - afterDisc;
+
+  // Discount displays
+  if (discType==='pct') {
+    const pct = parseFloat(document.getElementById('disc-pct-val').value)||0;
+    const off = base*(pct/100);
+    document.getElementById('disc-pct-off').textContent = '-₹'+off.toLocaleString('en-IN');
+    document.getElementById('disc-pct-final').textContent = '₹'+(base-off).toLocaleString('en-IN');
+  }
+  if (discType==='amt') {
+    const off = parseFloat(document.getElementById('disc-amt-val').value)||0;
+    const pct = base>0 ? (off/base*100) : 0;
+    document.getElementById('disc-amt-pct').textContent = pct.toFixed(1)+'%';
+    document.getElementById('disc-amt-final').textContent = '₹'+(base-off).toLocaleString('en-IN');
+  }
+
+  // Summary bar
+  document.getElementById('sum-items').textContent = '₹'+base.toLocaleString('en-IN');
+  const dr = document.getElementById('sum-disc-row');
+  if (discAmt > 0) { document.getElementById('sum-disc').textContent = '-₹'+discAmt.toLocaleString('en-IN'); dr.style.display=''; } else dr.style.display='none';
+  document.getElementById('sum-final').textContent = '₹'+finalAmt.toLocaleString('en-IN');
+  document.getElementById('total-bar').style.display = base > 0 ? '' : 'none';
+
+  // Paid adj
+  const ps = document.getElementById('paid-adj-section');
+  if (hasPaid && Math.abs(paidRaw - afterDisc) >= 1) {
+    ps.style.display = '';
+    document.getElementById('paid-adj-total').textContent = '₹'+afterDisc.toLocaleString('en-IN');
+    document.getElementById('paid-adj-paid').textContent = '₹'+paidRaw.toLocaleString('en-IN');
+    const diff = afterDisc - paidRaw;
+    const de = document.getElementById('paid-adj-diff');
+    const dl = document.getElementById('paid-adj-diff-lbl');
+    if (diff > 0) { de.textContent='-₹'+diff.toLocaleString('en-IN'); de.style.color='var(--r)'; dl.style.color='var(--r)'; dl.textContent='Extra discount given'; }
+    else { de.textContent='+₹'+Math.abs(diff).toLocaleString('en-IN'); de.style.color='var(--g)'; dl.style.color='var(--g)'; dl.textContent='Customer paid extra'; }
+    const effPct = base>0 ? ((base-paidRaw)/base*100) : 0;
+    document.getElementById('paid-adj-pct').textContent = Math.abs(effPct).toFixed(1)+'%';
+    document.getElementById('paid-adj-pct-lbl').textContent = effPct>=0 ? 'Total effective discount' : 'Effective premium';
+    document.getElementById('paid-adj-pct').style.color = effPct>=0 ? 'var(--r)' : 'var(--g)';
+  } else ps.style.display = 'none';
+
+  // Profit
+  let cost=0, hasCost=false;
+  currentItems.forEach(item => {
+    const q = item.qty||1;
+    const m = S.costCodes.find(c => c.code.toUpperCase() === (item.itemCode||'').toUpperCase());
+    if (m) { cost += m.cost*q; hasCost = true; }
+  });
+  const pr = document.getElementById('profit-row');
+  if (hasCost) {
+    const profit = finalAmt - cost;
+    document.getElementById('sum-profit').textContent = (profit>=0?'':'- ')+'₹'+Math.abs(profit).toLocaleString('en-IN');
+    document.getElementById('sum-profit').style.color = profit>=0 ? 'var(--g)' : 'var(--r)';
+    pr.style.display = '';
+  } else pr.style.display = 'none';
+
+  // Update due balance
+  calcDue();
+  checkSplitBalance(finalAmt);
+}
+
+// ===================== PAYMENT =====================
+function setPayMode(mode) {
+  payMode = mode;
+  ['single','split','due'].forEach(m => {
+    document.getElementById('tab-'+m).classList.toggle('active', m===mode);
+    document.getElementById('pay-'+m).style.display = m===mode ? '' : 'none';
+  });
+}
+
+function renderSingleMethods() {
+  document.getElementById('single-methods').innerHTML = S.payMethods.map(m =>
+    `<div class="pay-card ${m===selSingleMethod?'on':''}" onclick="selSingle('${m.replace(/'/g,"\\'")}')">
+      <span class="pay-card-icon">${picon(m)}</span><span class="pay-card-name">${m}</span>
+    </div>`).join('');
+}
+function selSingle(m) { selSingleMethod = m; renderSingleMethods(); }
+
+function renderSplitRows() {
+  document.getElementById('split-rows').innerHTML = S.payMethods.map(m =>
+    `<div class="split-row">
+      <span class="split-icon">${picon(m)}</span>
+      <span class="split-label">${m}</span>
+      <input type="number" class="split-input" placeholder="₹0" value="${splitAmounts[m]||''}"
+        oninput="splitAmounts['${m.replace(/'/g,"\\'")}']=(+this.value||0);checkSplitBalance()">
+    </div>`).join('');
+}
+function checkSplitBalance(total) {
+  if (payMode !== 'split') return;
+  const t = total || getFinalAmount(); if (t===0) return;
+  const entered = Object.values(splitAmounts).reduce((a,v)=>a+(+v||0),0);
+  const el = document.getElementById('split-status');
+  if (entered===0) { el.className='split-status'; el.textContent=''; return; }
+  const diff = Math.abs(entered-t);
+  if (diff<1) { el.className='split-status ok'; el.textContent='✓ Balanced — ₹'+t.toLocaleString('en-IN'); }
+  else if (entered<t) { el.className='split-status warn'; el.textContent='⚠ Short by ₹'+(t-entered).toLocaleString('en-IN'); }
+  else { el.className='split-status warn'; el.textContent='⚠ Excess by ₹'+(entered-t).toLocaleString('en-IN'); }
+}
+
+function renderDueMethodSelect() {
+  const sel = document.getElementById('due-method');
+  sel.innerHTML = S.payMethods.map(m => `<option value="${m}">${picon(m)} ${m}</option>`).join('');
+}
+function calcDue() {
+  const total = getFinalAmount();
+  const paidNow = parseFloat(document.getElementById('due-paid-now').value)||0;
+  const bal = Math.max(0, total - paidNow);
+  document.getElementById('due-total').textContent = '₹'+total.toLocaleString('en-IN');
+  document.getElementById('due-paid-display').textContent = '₹'+paidNow.toLocaleString('en-IN');
+  document.getElementById('due-balance').textContent = '₹'+bal.toLocaleString('en-IN');
+}
+
+// ===================== SALE DATA =====================
+function getSaleData() {
+  if (!selSalesman) { alert('Select a salesperson'); return null; }
+  const items = currentItems.filter(i => i.product && i.price > 0);
+  if (!items.length) { alert('Select a product and enter price for at least one item'); return null; }
+
+  const base = getItemsTotal();
+  const afterDisc = getDiscountedTotal();
+  const paidRaw = parseFloat(document.getElementById('paid-amount').value);
+  const finalAmt = (!isNaN(paidRaw) && paidRaw>0) ? paidRaw : afterDisc;
+  const totalDisc = base - finalAmt;
+  const effPct = base>0 ? (totalDisc/base*100) : 0;
+
+  let cost=0, hasCost=false;
+  const enriched = items.map(item => {
+    const q = item.qty||1;
+    const m = S.costCodes.find(c => c.code.toUpperCase()===(item.itemCode||'').toUpperCase());
+    const c = m ? m.cost : null;
+    if (c!=null) { cost += c*q; hasCost = true; }
+    return {...item, costPerUnit:c};
+  });
+
+  // Payment info
+  let payInfo;
+  if (payMode==='single') {
+    payInfo = {mode:'single', method:selSingleMethod};
+  } else if (payMode==='split') {
+    const used = {};
+    S.payMethods.forEach(m => { if (splitAmounts[m]>0) used[m]=splitAmounts[m]; });
+    payInfo = {mode:'split', method:'Split', breakdown:used};
+  } else {
+    // due mode
+    const paidNow = parseFloat(document.getElementById('due-paid-now').value)||0;
+    const method = document.getElementById('due-method').value;
+    const balDue = Math.max(0, finalAmt - paidNow);
+    const dueNote = document.getElementById('due-note').value.trim();
+    const dueDate = document.getElementById('due-date').value.trim();
+    payInfo = {mode:'due', method, paidNow, balanceDue:balDue, dueNote, dueDate};
+  }
+
+  return {
+    id: 'S'+Date.now(), date: new Date().toISOString(),
+    salesman: selSalesman,
+    custName: document.getElementById('cust-name').value.trim(),
+    custMobile: document.getElementById('cust-mobile').value.trim(),
+    note: document.getElementById('sale-note').value.trim(),
+    items: enriched, itemsTotal: base,
+    discountAmt: totalDisc>0 ? totalDisc : 0,
+    discountPct: totalDisc>0 ? effPct : 0,
+    finalAmt,
+    totalCost: hasCost ? cost : null,
+    profit: hasCost ? finalAmt-cost : null,
+    payInfo
+  };
+}
+
+function completeSale() {
+  const sale = getSaleData(); if (!sale) return;
+  sales.unshift(sale); saveSales();
+  showBillModal(sale, true);
+}
+function previewBill() {
+  const sale = getSaleData(); if (!sale) return;
+  showBillModal(sale, false);
+}
+function resetSale() {
+  currentItems=[]; splitAmounts={}; selSingleMethod='Cash'; payMode='single'; discType='none';
+  ['cust-name','cust-mobile','sale-note','paid-amount','disc-pct-val','disc-amt-val','due-paid-now','due-note','due-date'].forEach(id => { const el=document.getElementById(id); if(el)el.value=''; });
+  document.getElementById('total-bar').style.display='none';
+  document.getElementById('paid-adj-section').style.display='none';
+  setPayMode('single'); setDiscType('none');
+  addItem(); renderSingleMethods(); renderSplitRows(); renderDueMethodSelect();
+}
+
+// ===================== BILL HTML =====================
+function buildBillHTML(sale) {
+  const d = new Date(sale.date);
+  const ds = d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  const ts = d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+
+  const rows = sale.items.map(item => {
+    const q = item.qty||1;
+    return `<tr>
+      <td style="padding:6px 0;font-size:13px;border-bottom:1px solid #3a1525">${item.product}${q>1?` ×${q}`:''}</td>
+      <td style="text-align:right;padding:6px 0;font-size:13px;border-bottom:1px solid #3a1525;color:#e8185a;font-weight:700">₹${((item.price||0)*q).toLocaleString('en-IN')}</td>
+    </tr>`;
+  }).join('');
+
+  let discLine = '';
+  if (sale.discountAmt > 0) {
+    discLine = `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+      <span style="color:#9a5068">Discount (${sale.discountPct.toFixed(1)}%)</span>
+      <span style="color:#dc2626;font-weight:700">-₹${sale.discountAmt.toLocaleString('en-IN')}</span>
+    </div>`;
+  }
+
+  const pi = sale.payInfo; let paySection = '';
+  if (pi) {
+    if (pi.mode==='single') {
+      paySection = `<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px"><span style="color:#9a5068">Payment via</span><span style="color:#e8185a;font-weight:700">${picon(pi.method)} ${pi.method}</span></div>`;
+    } else if (pi.mode==='split' && pi.breakdown) {
+      const bLines = Object.entries(pi.breakdown).map(([m,a])=>
+        `<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:3px"><span style="color:#9a5068">${picon(m)} ${m}</span><span>₹${(+a).toLocaleString('en-IN')}</span></div>`).join('');
+      paySection = `<div style="margin-top:8px;padding:8px;background:#1a0812;border-radius:7px">
+        <div style="font-size:11px;color:#5a2035;margin-bottom:4px">Split Payment</div>${bLines}</div>`;
+    } else if (pi.mode==='due') {
+      paySection = `<div style="margin-top:8px;padding:10px;background:#1a0812;border-radius:8px;border:1px solid #ea580c">
+        <div style="font-size:11px;color:#ea580c;font-weight:700;margin-bottom:6px">PART PAYMENT</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span style="color:#9a5068">Paid now (${picon(pi.method)} ${pi.method})</span><span style="color:#16a34a;font-weight:700">₹${(pi.paidNow||0).toLocaleString('en-IN')}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-top:6px;padding-top:6px;border-top:1px dashed #ea580c">
+          <span style="color:#ea580c">Balance Due</span><span style="color:#ea580c">₹${(pi.balanceDue||0).toLocaleString('en-IN')}</span>
+        </div>
+        ${pi.dueNote?`<div style="font-size:12px;color:#9a5068;margin-top:4px">📝 ${pi.dueNote}</div>`:''}
+        ${pi.dueDate?`<div style="font-size:12px;color:#ea580c;margin-top:2px">📅 Due: ${pi.dueDate}</div>`:''}
+      </div>`;
+    }
+  }
+
+  return `
+    <div style="font-family:monospace;font-size:11px;color:#e8185a;text-align:center;letter-spacing:2px;margin-bottom:4px">SALES RECEIPT</div>
+    <div style="text-align:center;font-size:15px;font-weight:800;margin-bottom:2px;color:#fff0f5">${S.shopName}</div>
+    <div style="text-align:center;font-size:11px;color:#9a5068;margin-bottom:2px">${S.address}</div>
+    <div style="text-align:center;font-size:11px;color:#9a5068;margin-bottom:12px">${S.ownerMobile?'📞 '+S.ownerMobile:''}</div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#5a2035;margin-bottom:7px"><span>Bill: ${sale.id}</span><span>${ds} ${ts}</span></div>
+    <div style="font-size:12px;color:#9a5068;margin-bottom:4px">Staff: <strong style="color:#fff0f5">${sale.salesman}</strong></div>
+    ${sale.custName?`<div style="font-size:12px;color:#9a5068;margin-bottom:8px">Customer: <strong style="color:#fff0f5">${sale.custName}</strong></div>`:''}
+    <div style="border-top:1px dashed #5a2035;border-bottom:1px dashed #5a2035;padding:8px 0;margin-bottom:8px">
+      <table style="width:100%"><thead><tr>
+        <th style="text-align:left;font-size:10px;color:#5a2035;padding-bottom:4px">Item</th>
+        <th style="text-align:right;font-size:10px;color:#5a2035;padding-bottom:4px">Price</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px"><span style="color:#9a5068">Subtotal</span><span style="color:#fff0f5">₹${sale.itemsTotal.toLocaleString('en-IN')}</span></div>
+    ${discLine}
+    <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #5a2035;font-size:17px;font-weight:800">
+      <span style="color:#fff0f5">Amount Paid</span><span style="color:#e8185a">₹${sale.finalAmt.toLocaleString('en-IN')}</span>
+    </div>
+    ${paySection}
+    ${sale.note?`<div style="margin-top:9px;font-size:12px;color:#9a5068;font-style:italic">Note: ${sale.note}</div>`:''}
+    <div style="text-align:center;margin-top:14px;font-size:11px;color:#5a2035">Thank you! 🙏</div>`;
+}
+
+function showBillModal(sale, saved) {
+  currentBillSale = sale;
+  document.getElementById('bill-content').innerHTML = buildBillHTML(sale);
+  document.getElementById('send-cust-btn').style.opacity = sale.custMobile ? '1' : '0.4';
+  openModal('bill-modal');
+  if (saved) resetSale();
+}
+
+// ===================== WHATSAPP =====================
+function buildWAMsg(sale, forOwner) {
+  const d = new Date(sale.date);
+  const ds = d.toLocaleDateString('en-IN');
+  const ts = d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const items = sale.items.map(i => `  • ${i.product}${(i.qty||1)>1?` ×${i.qty}`:''} — ₹${((i.price||0)*(i.qty||1)).toLocaleString('en-IN')}`).join('\n');
+
+  let msg = `🛍 *${S.shopName}*\n📍 ${S.address}\n\n*SALES RECEIPT*\nBill: ${sale.id}\nDate: ${ds} ${ts}\nStaff: ${sale.salesman}\n`;
+  if (sale.custName) msg += `Customer: ${sale.custName}\n`;
+  msg += `\n*Items:*\n${items}\n\nSubtotal: ₹${sale.itemsTotal.toLocaleString('en-IN')}\n`;
+  if (sale.discountAmt > 0) msg += `Discount: -₹${sale.discountAmt.toLocaleString('en-IN')} (${sale.discountPct.toFixed(1)}%)\n`;
+  msg += `*Amount: ₹${sale.finalAmt.toLocaleString('en-IN')}*\n`;
+
+  const pi = sale.payInfo;
+  if (pi) {
+    if (pi.mode==='single') msg += `Payment: ${pi.method}\n`;
+    else if (pi.mode==='split' && pi.breakdown) { msg += `\nSplit Payment:\n`; Object.entries(pi.breakdown).forEach(([m,a])=>{msg+=`  ${m}: ₹${a}\n`;}); }
+    else if (pi.mode==='due') {
+      msg += `\n*PART PAYMENT*\n`;
+      msg += `Paid now (${pi.method}): ₹${(pi.paidNow||0).toLocaleString('en-IN')}\n`;
+      msg += `*⚠ Balance Due: ₹${(pi.balanceDue||0).toLocaleString('en-IN')}*\n`;
+      if (pi.dueNote) msg += `Reason: ${pi.dueNote}\n`;
+      if (pi.dueDate) msg += `Due by: ${pi.dueDate}\n`;
+    }
+  }
+  if (forOwner && sale.profit!=null) msg += `\n🔒 Cost: ₹${sale.totalCost.toLocaleString('en-IN')} | *Profit: ₹${sale.profit.toLocaleString('en-IN')}*\n`;
+  if (sale.note) msg += `\nNote: ${sale.note}\n`;
+  msg += `\nThank you! 🙏`;
+  return msg;
+}
+
+function sendWA(target) {
+  if (!currentBillSale) return;
+  const forOwner = target==='owner';
+  const mobile = forOwner ? S.ownerMobile : currentBillSale.custMobile;
+  if (!mobile) { alert('No mobile number!'); return; }
+  window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(buildWAMsg(currentBillSale, forOwner))}`, '_blank');
+}
+function resendWA(target) {
+  if (!viewingSaleId) return;
+  const sale = sales.find(s => s.id===viewingSaleId); if (!sale) return;
+  currentBillSale = sale; sendWA(target);
+}
+
+// ===================== HISTORY =====================
+function dateKey(iso) {
+  const d = new Date(iso);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function todayKey() { return dateKey(new Date().toISOString()); }
+function fmtDate(key) {
+  const today = todayKey();
+  const yest = dateKey(new Date(Date.now()-86400000).toISOString());
+  if (key===today) return 'Today';
+  if (key===yest) return 'Yesterday';
+  const [y,m,dd] = key.split('-');
+  return new Date(+y,+m-1,+dd).toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+}
+
+function renderHistoryStats() {
+  const rev = sales.reduce((a,s)=>a+s.finalAmt,0);
+  const prof = sales.filter(s=>s.profit!=null).reduce((a,s)=>a+s.profit,0);
+  const due = sales.filter(s=>s.payInfo?.mode==='due').reduce((a,s)=>a+(s.payInfo.balanceDue||0),0);
+  const avg = sales.length ? rev/sales.length : 0;
+  document.getElementById('hist-count').textContent = sales.length;
+  document.getElementById('hist-revenue').textContent = '₹'+rev.toLocaleString('en-IN');
+  document.getElementById('hist-profit').textContent = '₹'+prof.toLocaleString('en-IN');
+  document.getElementById('hist-due').textContent = '₹'+due.toLocaleString('en-IN');
+
+  const tk = todayKey();
+  const ts = sales.filter(s=>dateKey(s.date)===tk);
+  const tRev = ts.reduce((a,s)=>a+s.finalAmt,0);
+  const tProf = ts.filter(s=>s.profit!=null).reduce((a,s)=>a+s.profit,0);
+  const tDisc = ts.reduce((a,s)=>a+(s.discountAmt||0),0);
+  const tDue = ts.filter(s=>s.payInfo?.mode==='due').reduce((a,s)=>a+(s.payInfo.balanceDue||0),0);
+  const banner = document.getElementById('today-banner');
+  banner.style.display = ts.length ? '' : 'none';
+  document.getElementById('today-revenue').textContent = '₹'+tRev.toLocaleString('en-IN');
+  document.getElementById('today-count').textContent = ts.length;
+  document.getElementById('today-profit').textContent = '₹'+tProf.toLocaleString('en-IN');
+  document.getElementById('today-disc').textContent = tDisc>0 ? '-₹'+tDisc.toLocaleString('en-IN') : '₹0';
+  document.getElementById('today-due-amt').textContent = '₹'+tDue.toLocaleString('en-IN');
+  document.getElementById('today-due-row').style.display = tDue>0 ? '' : 'none';
+}
+
+function renderSalesmanFilter() {
+  const sel = document.getElementById('hist-filter'); if (!sel) return;
+  sel.innerHTML = '<option value="">All Staff</option>'+S.salesmen.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+
+function renderHistory() {
+  const q = (document.getElementById('hist-search')?.value||'').toLowerCase();
+  const fm = document.getElementById('hist-filter')?.value||'';
+  const list = document.getElementById('history-list');
+  let filtered = sales.filter(s => {
+    if (fm && s.salesman!==fm) return false;
+    if (q) { const t=(s.salesman+s.custName+(s.items||[]).map(i=>i.product).join(' ')).toLowerCase(); if(!t.includes(q)) return false; }
+    return true;
+  });
+  if (!filtered.length) { list.innerHTML=`<div class="empty"><div class="empty-icon">📊</div>No sales found</div>`; return; }
+
+  const groups = {};
+  filtered.forEach(s => { const k=dateKey(s.date); if(!groups[k])groups[k]=[]; groups[k].push(s); });
+  const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+
+  let html = '';
+  sortedKeys.forEach(key => {
+    const gs = groups[key];
+    const gRev = gs.reduce((a,s)=>a+s.finalAmt,0);
+    const gProfit = gs.filter(s=>s.profit!=null).reduce((a,s)=>a+s.profit,0);
+    const gDisc = gs.reduce((a,s)=>a+(s.discountAmt||0),0);
+    const gDue = gs.filter(s=>s.payInfo?.mode==='due').reduce((a,s)=>a+(s.payInfo.balanceDue||0),0);
+    const hasProfit = gs.some(s=>s.profit!=null);
+    const col = !!collapsedGroups[key];
+
+    html += `<div class="date-group-hdr" onclick="toggleGroup('${key}')">
+      <div>
+        <div class="date-group-label">${fmtDate(key)}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">
+          ${gs.length} bill${gs.length>1?'s':''}
+          ${gDisc>0?' · Disc -₹'+gDisc.toLocaleString('en-IN'):''}
+          ${gDue>0?' · Due ₹'+gDue.toLocaleString('en-IN'):''}
+        </div>
+      </div>
+      <div class="date-group-meta">
+        <div style="text-align:right">
+          <div class="date-group-rev">₹${gRev.toLocaleString('en-IN')}</div>
+          ${hasProfit?`<div class="date-group-profit">+₹${gProfit.toLocaleString('en-IN')}</div>`:''}
+        </div>
+        <span class="date-group-chevron ${col?'col':''}">▼</span>
+      </div>
+    </div>`;
+
+    if (!col) {
+      gs.forEach(s => {
+        const st = new Date(s.date).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+        const pm = s.payInfo ? (picon(s.payInfo.method)+' '+s.payInfo.method) : '';
+        const hasDue = s.payInfo?.mode==='due' && s.payInfo.balanceDue>0;
+        const profBadge = s.profit!=null
+          ? `<span class="pbadge ${s.profit>=0?'pos':'neg'}">🔒 ${s.profit>=0?'+':'-'}₹${Math.abs(s.profit).toLocaleString('en-IN')}</span>`
+          : `<span class="pbadge na">No code</span>`;
+
+        html += `<div class="sale-card" onclick="viewSale('${s.id}')">
+          <div class="sale-hdr">
+            <div>
+              <div class="sale-id">${s.id} · ${st}</div>
+              <div style="font-size:13px;font-weight:700;margin-top:2px">${s.salesman}</div>
+              ${s.custName?`<div style="font-size:11px;color:var(--t2)">${s.custName}</div>`:''}
+              ${pm?`<div style="font-size:11px;color:var(--t3);margin-top:2px">${pm}</div>`:''}
+            </div>
+            <div style="text-align:right">
+              <div class="sale-amt">₹${s.finalAmt.toLocaleString('en-IN')}</div>
+              ${s.discountAmt>0?`<div style="font-size:11px;color:var(--r);margin-top:2px">-₹${s.discountAmt.toLocaleString('en-IN')} off</div>`:''}
+              ${hasDue?`<div style="margin-top:3px"><span class="dbadge">⏳ Due ₹${s.payInfo.balanceDue.toLocaleString('en-IN')}</span></div>`:''}
+              <div style="margin-top:4px">${profBadge}</div>
+            </div>
+          </div>
+          <div class="sale-items-list">📦 ${(s.items||[]).map(i=>i.product+(i.qty>1?` ×${i.qty}`:'')).join(', ')}</div>
+        </div>`;
+      });
+    }
+  });
+  list.innerHTML = html;
+}
+
+function toggleGroup(key) { collapsedGroups[key] = !collapsedGroups[key]; renderHistory(); }
+
+function viewSale(id) {
+  viewingSaleId = id;
+  const sale = sales.find(s=>s.id===id); if (!sale) return;
+  currentBillSale = sale;
+  let html = buildBillHTML(sale);
+
+  if (sale.profit!=null) {
+    const pc = sale.profit>=0 ? 'var(--g)' : 'var(--r)';
+    html += `<div style="margin-top:12px;padding:12px;background:var(--gbg);border-radius:10px;border:1px solid var(--gbr)">
+      <div style="font-size:10px;color:var(--g);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px">🔒 Owner — Profit</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--t2)">Total Cost</span><span>₹${sale.totalCost.toLocaleString('en-IN')}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--t2)">Revenue</span><span>₹${sale.finalAmt.toLocaleString('en-IN')}</span></div>
+      ${sale.discountAmt>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--t2)">Discount given</span><span style="color:var(--r)">-₹${sale.discountAmt.toLocaleString('en-IN')}</span></div>`:''}
+      <div style="height:1px;background:var(--gbr);margin:8px 0"></div>
+      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800">
+        <span style="color:${pc}">Gross Profit</span>
+        <span style="color:${pc}">${sale.profit>=0?'':'- '}₹${Math.abs(sale.profit).toLocaleString('en-IN')}</span>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('detail-content').innerHTML = html;
+  document.getElementById('resend-cust-btn').style.opacity = sale.custMobile ? '1' : '0.4';
+  openModal('detail-modal');
+}
+
+function deleteSale() {
+  if (!viewingSaleId || !confirm('Delete this sale permanently?')) return;
+  sales = sales.filter(s=>s.id!==viewingSaleId); saveSales();
+  closeModal('detail-modal'); renderHistoryStats(); renderHistory();
+}
+
+// ===================== SETTINGS =====================
+function populateSettingsForm() {
+  document.getElementById('set-shop-name').value = S.shopName;
+  document.getElementById('set-address').value = S.address;
+  document.getElementById('set-owner-mobile').value = S.ownerMobile;
+  document.getElementById('set-owner-name').value = S.ownerName;
+  document.getElementById('set-profit-code').value = S.profitCode;
+}
+function saveShopInfo() {
+  S.shopName = document.getElementById('set-shop-name').value.trim() || S.shopName;
+  S.address = document.getElementById('set-address').value.trim();
+  S.ownerMobile = document.getElementById('set-owner-mobile').value.trim();
+  S.ownerName = document.getElementById('set-owner-name').value.trim();
+  saveS(); updateNavBrand(); alert('Saved!');
+}
+function renderSettingSalesmen() {
+  document.getElementById('salesman-list-set').innerHTML = S.salesmen.map((s,i)=>
+    `<div class="flex-row" style="margin-bottom:7px"><span style="flex:1;font-size:13px">${s}</span>
+    <button class="btn btn-ghost btn-sm" onclick="removeSalesman(${i})">✕</button></div>`).join('');
+}
+function addSalesman() {
+  const v=document.getElementById('new-salesman').value.trim(); if(!v)return;
+  S.salesmen.push(v); saveS(); document.getElementById('new-salesman').value='';
+  renderSettingSalesmen(); renderSalesmanChips(); renderSalesmanFilter();
+}
+function removeSalesman(i) { S.salesmen.splice(i,1); saveS(); renderSettingSalesmen(); renderSalesmanChips(); }
+
+function renderSettingProducts() {
+  document.getElementById('item-list-set').innerHTML = S.products.map((p,i)=>
+    `<div class="flex-row" style="margin-bottom:7px"><span style="flex:1;font-size:13px">${p}</span>
+    <button class="btn btn-ghost btn-sm" onclick="removeProduct(${i})">✕</button></div>`).join('');
+}
+function addProductItem() {
+  const v=document.getElementById('new-item').value.trim(); if(!v)return;
+  if(!S.products.includes(v))S.products.push(v);
+  saveS(); document.getElementById('new-item').value=''; renderSettingProducts(); renderItems();
+}
+function removeProduct(i) { S.products.splice(i,1); saveS(); renderSettingProducts(); renderItems(); }
+
+function renderCodeTable() {
+  document.getElementById('code-table-body').innerHTML = S.costCodes.map((c,i)=>
+    `<tr><td>${c.code}</td><td style="color:var(--t)">${c.product}</td><td style="color:var(--g)">₹${c.cost}</td>
+    <td><button class="rm-btn" onclick="removeCostCode(${i})">✕</button></td></tr>`).join('');
+}
+function addCostCode() {
+  const code=document.getElementById('new-code').value.trim().toUpperCase();
+  const product=document.getElementById('new-code-product').value.trim();
+  const cost=parseFloat(document.getElementById('new-code-cost').value);
+  if(!code||!product||isNaN(cost)){alert('Fill all three fields');return;}
+  S.costCodes.push({code,product,cost});
+  ['new-code','new-code-product','new-code-cost'].forEach(id=>document.getElementById(id).value='');
+  renderCodeTable();
+}
+function removeCostCode(i) { S.costCodes.splice(i,1); renderCodeTable(); }
+function saveCostCodes() { S.profitCode=document.getElementById('set-profit-code').value.trim(); saveS(); alert('Codes saved!'); }
+
+function renderPayMethodsSet() {
+  document.getElementById('pay-methods-set').innerHTML = S.payMethods.map((m,i)=>
+    `<div class="flex-row" style="margin-bottom:7px">
+      <span style="font-size:18px">${picon(m)}</span>
+      <span style="flex:1;font-size:13px">${m}</span>
+      <button class="btn btn-ghost btn-sm" onclick="removePayMethod(${i})">✕</button>
+    </div>`).join('');
+}
+function addPayMethod() {
+  const v=document.getElementById('new-paymethod').value.trim(); if(!v)return;
+  S.payMethods.push(v); saveS(); document.getElementById('new-paymethod').value='';
+  renderPayMethodsSet(); renderSingleMethods(); renderSplitRows(); renderDueMethodSelect();
+}
+function removePayMethod(i) {
+  S.payMethods.splice(i,1); saveS();
+  renderPayMethodsSet(); renderSingleMethods(); renderSplitRows(); renderDueMethodSelect();
+}
+function clearHistory() {
+  if(!confirm('Delete ALL sales history?'))return;
+  sales=[]; saveSales(); renderHistoryStats(); renderHistory();
+}
+
+// ===================== MODAL =====================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if(e.target===el) el.classList.remove('open'); });
+});
+
+// ===================== THEMES =====================
+// Each palette has DARK variant and LIGHT (pastel) variant
+// ar = accent RGB for rgba() usage
+const PALETTES = [
+  {
+    id:'pink', name:'Pink', emoji:'🩷',
+    dark:{ bg:'#1a0812',surface:'#26101c',s2:'#321523',s3:'#3e1b2c',b:'#612040',b2:'#7d2d52',t:'#fff0f5',t2:'#dda0bb',t3:'#8a4a66',a:'#e8185a',a2:'#c4124a',adark:'#9c0e3b',nav1:'#c4124a',nav2:'#9c0e3b' },
+    light:{ bg:'#fff0f8',surface:'#ffffff',s2:'#ffe4f0',s3:'#ffd6ea',b:'#f8c0d8',b2:'#f0a0c4',t:'#3d0a22',t2:'#8a3560',t3:'#c088a8',a:'#d4145a',a2:'#b01048',adark:'#8c0d3a',nav1:'#d4145a',nav2:'#b01048' },
+    ar:'232,24,90',
+  },
+  {
+    id:'lavender', name:'Lavender', emoji:'💜',
+    dark:{ bg:'#0e0814',surface:'#180f22',s2:'#21152e',s3:'#2a1c3a',b:'#4a2272',b2:'#5e2d90',t:'#f5f0ff',t2:'#c5a8e8',t3:'#7a5a9a',a:'#9333ea',a2:'#7e22ce',adark:'#6b21a8',nav1:'#7e22ce',nav2:'#6b21a8' },
+    light:{ bg:'#f5f0ff',surface:'#ffffff',s2:'#ede5ff',s3:'#e2d5ff',b:'#d4beff',b2:'#c0a0f0',t:'#2d1060',t2:'#6a3a9a',t3:'#b090d0',a:'#7c3aed',a2:'#6d28d9',adark:'#5b21b6',nav1:'#7c3aed',nav2:'#6d28d9' },
+    ar:'147,51,234',
+  },
+  {
+    id:'sky', name:'Sky Blue', emoji:'🩵',
+    dark:{ bg:'#040e18',surface:'#081824',s2:'#0d2030',s3:'#122a3e',b:'#1a4060',b2:'#225278',t:'#e8f4ff',t2:'#88c0e8',t3:'#4070a0',a:'#0ea5e9',a2:'#0284c7',adark:'#0369a1',nav1:'#0284c7',nav2:'#0369a1' },
+    light:{ bg:'#f0f8ff',surface:'#ffffff',s2:'#e0f2fe',s3:'#cce8fc',b:'#b0d8f8',b2:'#88c0f0',t:'#082040',t2:'#2a6090',t3:'#80b0d0',a:'#0284c7',a2:'#0369a1',adark:'#075985',nav1:'#0284c7',nav2:'#0369a1' },
+    ar:'14,165,233',
+  },
+  {
+    id:'mint', name:'Mint Green', emoji:'🌿',
+    dark:{ bg:'#051210',surface:'#0a1e1c',s2:'#0f2a28',s3:'#143834',b:'#1a5248',b2:'#226660',t:'#ecfdf5',t2:'#80e8b8',t3:'#3a7a60',a:'#10b981',a2:'#059669',adark:'#047857',nav1:'#059669',nav2:'#047857' },
+    light:{ bg:'#f0fdf8',surface:'#ffffff',s2:'#d8faea',s3:'#c0f5dc',b:'#a0e8c8',b2:'#78d8b0',t:'#082820',t2:'#206848',t3:'#70b898',a:'#059669',a2:'#047857',adark:'#065f46',nav1:'#059669',nav2:'#047857' },
+    ar:'16,185,129',
+  },
+  {
+    id:'peach', name:'Peach', emoji:'🍑',
+    dark:{ bg:'#180a04',surface:'#281408',s2:'#361c0c',s3:'#442412',b:'#7a3818',b2:'#9a4822',t:'#fff5f0',t2:'#f0b090',t3:'#a06040',a:'#ea580c',a2:'#c2410c',adark:'#9a3400',nav1:'#c2410c',nav2:'#9a3400' },
+    light:{ bg:'#fff7f0',surface:'#ffffff',s2:'#ffe8d8',s3:'#ffdac4',b:'#ffc8a8',b2:'#f8a888',t:'#3a1408',t2:'#904020',t3:'#d09070',a:'#ea580c',a2:'#c2410c',adark:'#9a3400',nav1:'#ea580c',nav2:'#c2410c' },
+    ar:'234,88,12',
+  },
+  {
+    id:'lemon', name:'Lemon', emoji:'🍋',
+    dark:{ bg:'#0f0e00',surface:'#1c1a00',s2:'#282600',s3:'#343200',b:'#5a5600',b2:'#727000',t:'#fffff0',t2:'#e0d870',t3:'#888040',a:'#ca8a04',a2:'#a16207',adark:'#854d0e',nav1:'#a16207',nav2:'#854d0e' },
+    light:{ bg:'#fffff0',surface:'#ffffff',s2:'#fefce8',s3:'#fef9c3',b:'#fde68a',b2:'#fcd34d',t:'#2c2200',t2:'#785a00',t3:'#c0a030',a:'#ca8a04',a2:'#a16207',adark:'#854d0e',nav1:'#ca8a04',nav2:'#a16207' },
+    ar:'202,138,4',
+  },
+  {
+    id:'choco', name:'Chocolate', emoji:'🍫',
+    dark:{ bg:'#0e0600',surface:'#1c0e04',s2:'#2a1608',s3:'#381e0e',b:'#6a360e',b2:'#844418',t:'#fff8f0',t2:'#e0b888',t3:'#906040',a:'#b45309',a2:'#92400e',adark:'#78350f',nav1:'#92400e',nav2:'#78350f' },
+    light:{ bg:'#fdf8f4',surface:'#ffffff',s2:'#f5e8d8',s3:'#eed8c0',b:'#e0c4a0',b2:'#d0a878',t:'#2c1400',t2:'#7a4010',t3:'#c09060',a:'#b45309',a2:'#92400e',adark:'#78350f',nav1:'#b45309',nav2:'#92400e' },
+    ar:'180,83,9',
+  },
+  {
+    id:'rose', name:'Rose Red', emoji:'🌹',
+    dark:{ bg:'#14040a',surface:'#200810',s2:'#2c0c16',s3:'#38101e',b:'#6d1a30',b2:'#8a2040',t:'#fff0f3',t2:'#f4a0b8',t3:'#8a3555',a:'#f43f5e',a2:'#e11d48',adark:'#be123c',nav1:'#e11d48',nav2:'#be123c' },
+    light:{ bg:'#fff0f4',surface:'#ffffff',s2:'#ffe0e8',s3:'#ffd0dc',b:'#fbb0c0',b2:'#f888a0',t:'#3a0818',t2:'#8c2a45',t3:'#d07890',a:'#e11d48',a2:'#be123c',adark:'#9f1239',nav1:'#e11d48',nav2:'#be123c' },
+    ar:'244,63,94',
+  },
+  {
+    id:'slate', name:'Slate', emoji:'🩶',
+    dark:{ bg:'#0a0c10',surface:'#111318',s2:'#181b22',s3:'#1f232c',b:'#2e3340',b2:'#3a4050',t:'#f0f2f8',t2:'#9098b0',t3:'#5a6078',a:'#6366f1',a2:'#4f46e5',adark:'#4338ca',nav1:'#4f46e5',nav2:'#4338ca' },
+    light:{ bg:'#f4f5ff',surface:'#ffffff',s2:'#e8eaff',s3:'#d8dcff',b:'#c0c8f8',b2:'#a0acf0',t:'#0e1040',t2:'#3040a0',t3:'#8090d0',a:'#4f46e5',a2:'#4338ca',adark:'#3730a3',nav1:'#4f46e5',nav2:'#4338ca' },
+    ar:'99,102,241',
+  },
+];
+
+let currentPaletteId = 'pink';
+let isDarkMode = true;
+
+function getActivePalette() {
+  return PALETTES.find(p => p.id === currentPaletteId) || PALETTES[0];
+}
+
+function applyTheme(palette, darkMode) {
+  if (palette) currentPaletteId = palette.id;
+  if (darkMode !== undefined) isDarkMode = darkMode;
+  const pal = getActivePalette();
+  const v = isDarkMode ? pal.dark : pal.light;
+  const r = document.documentElement.style;
+
+  r.setProperty('--bg', v.bg);
+  r.setProperty('--surface', v.surface);
+  r.setProperty('--s2', v.s2);
+  r.setProperty('--s3', v.s3);
+  r.setProperty('--b', v.b);
+  r.setProperty('--b2', v.b2);
+  r.setProperty('--t', v.t);
+  r.setProperty('--t2', v.t2);
+  r.setProperty('--t3', v.t3);
+  r.setProperty('--a', v.a);
+  r.setProperty('--a2', v.a2);
+  r.setProperty('--adark', v.adark);
+  r.setProperty('--abg', `rgba(${pal.ar},.15)`);
+  r.setProperty('--abg2', `rgba(${pal.ar},.07)`);
+
+  // Nav
+  const nav = document.querySelector('.nav');
+  if (nav) {
+    nav.style.background = `linear-gradient(135deg,${v.nav1} 0%,${v.nav2} 100%)`;
+    nav.style.boxShadow = `0 2px 16px rgba(${pal.ar},.4)`;
+  }
+
+  // Update mode toggle UI
+  const knob = document.getElementById('mode-knob');
+  const toggle = document.getElementById('mode-toggle');
+  const desc = document.getElementById('mode-desc');
+  if (knob) knob.style.left = isDarkMode ? '3px' : '27px';
+  if (toggle) toggle.style.background = v.a;
+  if (desc) desc.textContent = isDarkMode ? 'Dark mode active' : 'Light mode active';
+
+  try {
+    localStorage.setItem('spt6_palette', currentPaletteId);
+    localStorage.setItem('spt6_dark', isDarkMode ? '1' : '0');
+  } catch(e) {}
+  renderThemeSwatches();
+}
+
+function toggleMode() {
+  applyTheme(null, !isDarkMode);
+}
+
+function renderThemeSwatches() {
+  const container = document.getElementById('theme-swatches');
+  if (!container) return;
+  container.innerHTML = PALETTES.map(pal => {
+    const active = pal.id === currentPaletteId;
+    const v = isDarkMode ? pal.dark : pal.light;
+    return `<div onclick="applyTheme(PALETTES.find(p=>p.id==='${pal.id}'))"
+      style="border-radius:12px;overflow:hidden;cursor:pointer;border:2.5px solid ${active ? v.a : 'transparent'};transition:all .2s;${active?'box-shadow:0 0 0 3px '+v.a+'50':''}"
+      title="${pal.name}">
+      <div style="height:44px;background:linear-gradient(135deg,${v.nav1},${v.nav2});display:flex;align-items:center;justify-content:center;">
+        <span style="font-size:22px">${pal.emoji}</span>
+      </div>
+      <div style="background:${v.surface};border-top:1px solid ${v.b};padding:5px 4px;text-align:center">
+        <div style="font-size:10px;font-weight:700;color:${v.t2};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pal.name}</div>
+        ${active?`<div style="font-size:9px;color:${v.a};font-weight:800">✓ Active</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function loadTheme() {
+  try {
+    const savedPal = localStorage.getItem('spt6_palette');
+    const savedDark = localStorage.getItem('spt6_dark');
+    if (savedPal) currentPaletteId = savedPal;
+    if (savedDark !== null) isDarkMode = savedDark === '1';
+  } catch(e) {}
+  applyTheme(null, isDarkMode);
+}
+
+// ===================== MODAL =====================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if(e.target===el) el.classList.remove('open'); });
+});
+
+loadTheme();
+init();
+</script>
+</body>
+</html>
