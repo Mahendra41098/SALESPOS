@@ -263,6 +263,15 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
 .exc-use-btn:active{opacity:.8}
 .exc-no-hist{text-align:center;padding:22px 16px;color:var(--t3);font-size:13px}
 
+/* ITEM ANALYSIS */
+.ia-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--b)}
+.ia-row:last-child{border-bottom:none}
+.ia-name{font-size:13px;font-weight:700;color:var(--t);width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ia-bar-wrap{flex:1;background:var(--s3);border-radius:4px;height:8px;overflow:hidden}
+.ia-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--a),var(--a2));transition:width .4s ease}
+.ia-qty{font-size:12px;font-weight:800;color:var(--a);width:36px;text-align:right;flex-shrink:0}
+.ia-rev{font-size:11px;color:var(--t3);width:68px;text-align:right;flex-shrink:0}
+
 @media(min-width:600px){.page,.nav,.lock-screen{max-width:480px;margin-left:auto;margin-right:auto}.lock-screen{left:50%;transform:translateX(-50%);width:480px}}
 </style>
 </head>
@@ -272,12 +281,24 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
 <div class="lock-screen" id="lock-screen">
   <div class="lock-icon">🔐</div>
   <div class="lock-title">History is Locked</div>
-  <div class="lock-sub">Enter your owner password to access<br>sales history &amp; profit data</div>
+  <div class="lock-sub">Enter owner password to access<br>sales history &amp; profit data</div>
   <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" maxlength="20"
     oninput="lockErr('')" onkeydown="if(event.key==='Enter')unlockHistory()">
   <div class="lock-err" id="lock-err"></div>
   <button class="btn btn-primary" style="max-width:280px;width:100%" onclick="unlockHistory()">Unlock History</button>
   <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="goToSaleFromLock()">← Back to Sale</button>
+</div>
+
+<!-- ===== SETTINGS LOCK SCREEN ===== -->
+<div class="lock-screen" id="settings-lock-screen" style="display:none">
+  <div class="lock-icon">⚙️</div>
+  <div class="lock-title" style="color:var(--a)">Settings Locked</div>
+  <div class="lock-sub">Enter owner password to access<br>settings &amp; configuration</div>
+  <input class="lock-input" type="password" id="set-lock-input" placeholder="••••••••" maxlength="20"
+    oninput="setLockErr('')" onkeydown="if(event.key==='Enter')unlockSettings()">
+  <div class="lock-err" id="set-lock-err"></div>
+  <button class="btn btn-primary" style="max-width:280px;width:100%" onclick="unlockSettings()">Unlock Settings</button>
+  <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="goToSaleFromSettLock()">← Back to Sale</button>
 </div>
 
 <!-- ===== MAIN APP ===== -->
@@ -291,7 +312,7 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
     <button class="tab active" id="tab-sale" onclick="goTab('sale',this)">Sale</button>
     <button class="tab" id="tab-exchange" onclick="goTab('exchange',this)">Exchange</button>
     <button class="tab" id="tab-history" onclick="tryHistory(this)">History</button>
-    <button class="tab" id="tab-settings" onclick="goTab('settings',this)">Settings</button>
+    <button class="tab" id="tab-settings" onclick="trySettings(this)">Settings</button>
   </div>
 </div>
 
@@ -384,10 +405,8 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
     <div class="tot-row" id="sum-disc-row" style="display:none"><span class="tot-lbl">Discount</span><span class="tot-val" id="sum-disc" style="color:var(--r)">-₹0</span></div>
     <div class="tot-divider"></div>
     <div class="tot-row"><span class="tot-lbl" style="font-weight:700;color:var(--t)">Final Amount</span><span class="tot-val main" id="sum-final">₹0</span></div>
-    <div id="profit-row" class="tot-row" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--gbr)">
-      <span class="tot-lbl" style="color:var(--g);font-size:11px">🔒 Gross Profit</span>
-      <span class="tot-val profit" id="sum-profit">₹0</span>
-    </div>
+    <!-- profit-row intentionally hidden from sale screen — owner sees it in History only -->
+    <div id="profit-row" style="display:none"><span id="sum-profit"></span></div>
   </div>
 
   <!-- PAYMENT MODE -->
@@ -581,7 +600,10 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
     <button class="btn btn-ghost btn-sm" onclick="lockHistoryNow()">🔒 Lock</button>
-    <button class="btn btn-red btn-sm" onclick="confirmClearHistory()" style="width:auto">🗑 Clear History</button>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost btn-sm" onclick="openModal('change-sett-pass-modal')" style="width:auto">⚙️ PIN</button>
+      <button class="btn btn-red btn-sm" onclick="confirmClearHistory()" style="width:auto">🗑 Clear</button>
+    </div>
   </div>
 
   <div class="hist-top-grid">
@@ -625,11 +647,11 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
     <div class="r2" style="gap:8px">
       <div>
         <label style="margin-top:0">From</label>
-        <input type="date" id="df-from" onchange="renderHistory()" style="color-scheme:dark">
+        <input type="date" id="df-from" onchange="renderHistory();renderItemAnalysis()" style="color-scheme:dark">
       </div>
       <div>
         <label style="margin-top:0">To</label>
-        <input type="date" id="df-to" onchange="renderHistory()" style="color-scheme:dark">
+        <input type="date" id="df-to" onchange="renderHistory();renderItemAnalysis()" style="color-scheme:dark">
       </div>
     </div>
     <div id="custom-range-label" style="font-size:11px;color:var(--a);margin-top:8px;font-weight:600"></div>
@@ -637,8 +659,8 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
 
   <!-- SEARCH + STAFF FILTER -->
   <div style="margin-bottom:11px;display:flex;gap:8px">
-    <input type="text" placeholder="Search items, customer..." id="hist-search" style="flex:1" oninput="renderHistory()">
-    <select class="native" id="hist-filter" onchange="renderHistory()"></select>
+    <input type="text" placeholder="Search items, customer..." id="hist-search" style="flex:1" oninput="renderHistory();renderItemAnalysis()">
+    <select class="native" id="hist-filter" onchange="renderHistory();renderItemAnalysis()"></select>
   </div>
 
   <!-- FILTERED STATS BAR -->
@@ -653,6 +675,19 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
       <div><div style="font-size:10px;color:var(--t3)">Discount Given</div><div style="font-size:13px;font-weight:700;color:var(--r)" id="fs-disc">₹0</div></div>
       <div><div style="font-size:10px;color:var(--t3)">Balance Due</div><div style="font-size:13px;font-weight:700;color:var(--o)" id="fs-due">₹0</div></div>
     </div>
+  </div>
+
+  <!-- ITEM ANALYSIS PANEL -->
+  <div id="item-analysis-panel" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px">📦 Items Sold</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="ia-sort-qty" onclick="setItemSort('qty')" style="padding:4px 10px;border-radius:7px;border:1.5px solid var(--a);background:var(--a);color:#fff;font-size:11px;font-weight:700;cursor:pointer">Qty</button>
+        <button id="ia-sort-rev" onclick="setItemSort('rev')" style="padding:4px 10px;border-radius:7px;border:1.5px solid var(--b2);background:transparent;color:var(--t2);font-size:11px;font-weight:700;cursor:pointer">Revenue</button>
+        <button id="ia-sort-profit" onclick="setItemSort('profit')" style="padding:4px 10px;border-radius:7px;border:1.5px solid var(--b2);background:transparent;color:var(--t2);font-size:11px;font-weight:700;cursor:pointer">🔒Profit</button>
+      </div>
+    </div>
+    <div id="item-analysis-list"></div>
   </div>
 
   <div id="history-list"></div>
@@ -745,6 +780,34 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px" onclick="migrateLocalToCloud()">☁️ Upload Local Sales → Firebase</button>
   </div>
 
+  <div class="sec">📲 Daily WhatsApp Summary</div>
+  <div class="card">
+    <div style="font-size:12px;color:var(--t2);margin-bottom:12px;padding:9px;background:var(--abg2);border-radius:8px;border:1px solid rgba(232,24,90,.2)">
+      Tap the button below (or set a reminder) to send today's full sales summary to your WhatsApp instantly.
+    </div>
+
+    <!-- Auto-send time -->
+    <label>Auto-remind time <span style="font-size:10px;color:var(--t3)">(browser must be open)</span></label>
+    <div class="r2" style="margin-bottom:10px">
+      <input type="time" id="set-summary-time" value="20:00"
+        style="background:var(--s2);border:1.5px solid var(--b);border-radius:var(--rad);padding:9px 12px;color:var(--t);font-size:14px;outline:none;width:100%">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div id="auto-send-toggle" onclick="toggleAutoSend()"
+          style="width:48px;height:26px;border-radius:13px;background:var(--b2);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+          <div id="auto-send-knob" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>
+        </div>
+        <span id="auto-send-lbl" style="font-size:12px;color:var(--t3);font-weight:600">OFF</span>
+      </div>
+    </div>
+    <div id="next-send-info" style="display:none;font-size:11px;color:var(--a);margin-bottom:10px;padding:7px 10px;background:var(--abg2);border-radius:8px">⏰ Next summary scheduled for <span id="next-send-time"></span></div>
+
+    <!-- Send now -->
+    <button class="btn btn-green" onclick="sendDailySummaryNow()">📲 Send Today's Summary to WhatsApp Now</button>
+    <div style="margin-top:8px">
+      <button class="btn btn-ghost btn-sm" style="width:100%" onclick="previewDailySummary()">👁 Preview Summary</button>
+    </div>
+  </div>
+
   <div class="sec">🎨 App Theme</div>
   <div class="card" id="theme-card">
     <!-- Dark / Light toggle -->
@@ -817,6 +880,33 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
         <button class="btn btn-red" onclick="executeClearHistory()">Yes, Delete All</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- CHANGE SETTINGS PIN MODAL -->
+<div class="modal-overlay" id="change-sett-pass-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="font-size:15px;font-weight:800;color:var(--a);margin-bottom:6px">⚙️ Change Settings PIN</div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:14px">Staff use this PIN to enter Settings tab</div>
+    <label>New PIN</label>
+    <input type="password" id="new-sett-pin" placeholder="Enter new PIN" style="font-size:20px;text-align:center;letter-spacing:4px">
+    <label>Confirm PIN</label>
+    <input type="password" id="confirm-sett-pin" placeholder="Repeat PIN" style="font-size:20px;text-align:center;letter-spacing:4px">
+    <div id="sett-pin-msg" style="display:none;margin-top:10px;padding:9px;border-radius:8px;font-size:12px;font-weight:600;text-align:center"></div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="saveSettPIN()">✓ Save PIN</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="closeModal('change-sett-pass-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- DAILY SUMMARY PREVIEW MODAL -->
+<div class="modal-overlay" id="summary-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="font-size:15px;font-weight:800;color:var(--a);margin-bottom:14px">📊 Today's Summary Preview</div>
+    <div id="summary-preview-content" style="font-size:13px;color:var(--t2);white-space:pre-wrap;font-family:monospace;background:var(--s2);border:1px solid var(--b);border-radius:10px;padding:14px;max-height:60vh;overflow-y:auto;line-height:1.7"></div>
+    <button class="btn btn-green" style="margin-top:14px" onclick="sendDailySummaryNow()">📲 Send to WhatsApp</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="closeModal('summary-modal')">Close</button>
   </div>
 </div>
 
@@ -1005,6 +1095,37 @@ function safeJSON(str, fallback) {
   try { return typeof str === 'string' ? JSON.parse(str) : (str || fallback); } catch(e) { return fallback; }
 }
 
+// Encode a number back to SALEPROFIT cipher string
+function encodeCostCode(num) {
+  const REV = {'1':'S','2':'A','3':'L','4':'E','5':'P','6':'R','7':'O','8':'F','9':'I','0':'T'};
+  return String(Math.round(num)).split('').map(d => REV[d]||d).join('');
+}
+
+// ===================== SETTINGS PIN (changeable from History) =====================
+let currentSettPass = '12345';
+function loadSettPass() {
+  const saved = localStorage.getItem('spt6_sett_pin');
+  if (saved) currentSettPass = saved;
+}
+function saveSettPIN() {
+  const np = document.getElementById('new-sett-pin').value.trim();
+  const cp = document.getElementById('confirm-sett-pin').value.trim();
+  const msg = document.getElementById('sett-pin-msg');
+  const show = (t, ok) => {
+    msg.style.display=''; msg.textContent=t;
+    msg.style.background = ok?'var(--gbg)':'var(--rbg)';
+    msg.style.color = ok?'var(--g)':'var(--r)';
+    msg.style.border = `1px solid ${ok?'var(--gbr)':'var(--rbr)'}`;
+  };
+  if (!np) { show('❌ PIN cannot be empty', false); return; }
+  if (np !== cp) { show('❌ PINs do not match', false); return; }
+  currentSettPass = np;
+  localStorage.setItem('spt6_sett_pin', np);
+  ['new-sett-pin','confirm-sett-pin'].forEach(id => document.getElementById(id).value='');
+  show('✅ Settings PIN updated!', true);
+  setTimeout(() => closeModal('change-sett-pass-modal'), 1200);
+}
+
 // ---- Push one sale to Firebase ----
 async function pushSaleToCloud(sale) {
   try {
@@ -1093,7 +1214,7 @@ function startRealtimeListeners() {
 
       // Refresh whichever tabs are currently visible
       const histActive = document.getElementById('page-history')?.classList.contains('active');
-      if (histActive) { renderHistoryStats(); renderHistory(); }
+      if (histActive) { renderHistoryStats(); renderHistory(); renderItemAnalysis(); }
 
       // Always keep in-memory fresh so exchange fetch works
     }, err => {
@@ -1154,6 +1275,8 @@ function init() {
   renderSettingProducts();
   renderPayMethodsSet();
   renderSalesmanFilter();
+  loadSummarySettings();
+  loadSettPass();
   // Start real-time listeners — all devices stay in sync automatically
   startRealtimeListeners();
 }
@@ -1163,9 +1286,8 @@ function updateNavBrand() {
 }
 
 // ===================== PASSWORD / LOCK =====================
-function getHistPass() {
-  return S.ownerMobile.trim();
-}
+const SETT_PASS = '12345';        // Settings tab — fixed PIN
+function getHistPass() { return (S.ownerMobile || '').trim(); }
 
 function tryHistory(el) {
   if (histUnlocked) { goTab('history', el); return; }
@@ -1179,12 +1301,7 @@ function tryHistory(el) {
 function unlockHistory() {
   const entered = document.getElementById('lock-input').value.trim();
   const pass = getHistPass();
-  if (!pass) { // no password set — allow access
-    histUnlocked = true;
-    returnToHistory();
-    return;
-  }
-  if (entered === pass) {
+  if (pass && entered === pass) {
     histUnlocked = true;
     returnToHistory();
   } else {
@@ -1201,6 +1318,7 @@ function returnToHistory() {
 
 function lockHistoryNow() {
   histUnlocked = false;
+  settUnlocked = false;
   goTab('sale', document.getElementById('tab-sale'));
 }
 
@@ -1218,8 +1336,8 @@ function goTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   el.classList.add('active');
-  if (name === 'history')  { renderHistoryStats(); renderHistory(); }
-  if (name === 'settings') { populateSettingsForm(); renderSettingSalesmen(); renderSettingProducts(); renderPayMethodsSet(); renderThemeSwatches(); }
+  if (name === 'history')  { renderHistoryStats(); renderHistory(); renderItemAnalysis(); }
+  if (name === 'settings') { populateSettingsForm(); renderSettingSalesmen(); renderSettingProducts(); renderPayMethodsSet(); renderThemeSwatches(); loadSummarySettings(); }
   if (name === 'exchange') { initExchange(); }
 }
 
@@ -1245,14 +1363,6 @@ function removeItem(id) {
 }
 function renderItems() {
   document.getElementById('items-container').innerHTML = currentItems.map((item, idx) => {
-    const decoded = decodeCostCode(item.itemCode);
-    const qty = item.qty||1;
-    const costHint = decoded !== null
-      ? `<div style="margin-top:4px;padding:5px 8px;background:var(--gbg);border:1px solid var(--gbr);border-radius:7px;display:flex;justify-content:space-between;align-items:center">
-           <span style="font-size:10px;color:var(--g);font-weight:700">🔒 Cost decoded</span>
-           <span style="font-size:12px;font-weight:800;color:var(--g)">₹${(decoded*qty).toLocaleString('en-IN')}${qty>1?' (₹'+decoded+' × '+qty+')':''}</span>
-         </div>`
-      : (item.itemCode ? `<div style="margin-top:4px;font-size:10px;color:var(--t3);padding:3px 6px">⚠ Unknown code — use S A L E P R O F I T letters only</div>` : '');
     return `
     <div class="item-row" id="row-${item.id}">
       <div class="item-row-hdr">
@@ -1266,11 +1376,10 @@ function renderItems() {
       </div>
       <div class="r2">
         <div>
-          <label>Cost Code <span style="font-size:9px;color:var(--t3);font-weight:400">(SALEPROFIT letters)</span></label>
-          <input type="text" placeholder="e.g. SAL = ₹123" value="${item.itemCode}"
+          <label>Code</label>
+          <input type="text" placeholder="e.g. SAL" value="${item.itemCode}"
             oninput="itemChg('${item.id}','itemCode',this.value.toUpperCase());this.value=this.value.toUpperCase()"
             style="font-family:monospace;letter-spacing:1px;font-weight:700">
-          ${costHint}
         </div>
         <div><label>Qty</label><input type="number" value="${item.qty}" min="1" oninput="itemChg('${item.id}','qty',+this.value||1)"></div>
       </div>
@@ -1462,11 +1571,19 @@ function getSaleData() {
   const effPct = base>0 ? (totalDisc/base*100) : 0;
 
   let cost=0, hasCost=false;
+  const MRP_MARGIN = 0.175; // 17.5% midpoint for items with no code
   const enriched = items.map(item => {
     const q = item.qty||1;
-    const c = decodeCostCode(item.itemCode); // auto-decode via SALEPROFIT cipher
-    if (c !== null) { cost += c*q; hasCost = true; }
-    return {...item, costPerUnit: c};
+    const soldPrice = (item.price||0)*q;
+    let c = decodeCostCode(item.itemCode); // try cipher decode
+    if (c !== null) {
+      cost += c * q; hasCost = true;
+    } else {
+      // No code — estimate cost as (1 - margin) × selling price
+      c = soldPrice * (1 - MRP_MARGIN);
+      cost += c; hasCost = true;
+    }
+    return {...item, costPerUnit: c/q, estimated: decodeCostCode(item.itemCode) === null};
   });
 
   // Payment info
@@ -1689,16 +1806,185 @@ function renderSalesmanFilter() {
   sel.innerHTML = '<option value="">All Staff</option>'+S.salesmen.map(s=>`<option value="${s}">${s}</option>`).join('');
 }
 
-function renderHistory() {
-  const q = (document.getElementById('hist-search')?.value||'').toLowerCase();
+// ===================== DATE FILTER =====================
+let currentDateFilter = 'all';
+let itemSortMode = 'qty';
+
+function setDateFilter(f) {
+  currentDateFilter = f;
+  ['all','today','week','month','last30','custom'].forEach(id => {
+    const el = document.getElementById('df-'+id);
+    if (el) el.classList.toggle('active', id === f);
+  });
+  const customBox = document.getElementById('custom-range-box');
+  if (customBox) customBox.style.display = f === 'custom' ? '' : 'none';
+  renderHistory();
+  renderItemAnalysis();
+}
+
+function setItemSort(mode) {
+  itemSortMode = mode;
+  ['qty','rev','profit'].forEach(m => {
+    const btn = document.getElementById('ia-sort-'+m);
+    if (!btn) return;
+    const active = m === mode;
+    btn.style.background = active ? 'var(--a)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--t2)';
+    btn.style.borderColor = active ? 'var(--a)' : 'var(--b2)';
+  });
+  renderItemAnalysis();
+}
+
+function getFilteredSales() {
+  const q  = (document.getElementById('hist-search')?.value||'').toLowerCase();
   const fm = document.getElementById('hist-filter')?.value||'';
-  const list = document.getElementById('history-list');
-  let filtered = sales.filter(s => {
-    if (fm && s.salesman!==fm) return false;
-    if (q) { const t=(s.salesman+s.custName+(s.items||[]).map(i=>i.product).join(' ')).toLowerCase(); if(!t.includes(q)) return false; }
+  const now = new Date();
+
+  return sales.filter(s => {
+    // Staff filter
+    if (fm && s.salesman !== fm) return false;
+    // Text search
+    if (q) {
+      const t = (s.salesman+s.custName+(s.items||[]).map(i=>i.product).join(' ')).toLowerCase();
+      if (!t.includes(q)) return false;
+    }
+    // Date filter
+    const d = new Date(s.date);
+    const dk = dateKey(s.date);
+    if (currentDateFilter === 'today')  return dk === todayKey();
+    if (currentDateFilter === 'week') {
+      const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0,0,0,0);
+      return d >= startOfWeek;
+    }
+    if (currentDateFilter === 'month') return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+    if (currentDateFilter === 'last30') return d >= new Date(now - 30*86400000);
+    if (currentDateFilter === 'custom') {
+      const from = document.getElementById('df-from')?.value;
+      const to   = document.getElementById('df-to')?.value;
+      if (from && dk < from) return false;
+      if (to   && dk > to)   return false;
+    }
     return true;
   });
-  if (!filtered.length) { list.innerHTML=`<div class="empty"><div class="empty-icon">📊</div>No sales found</div>`; return; }
+}
+
+function renderItemAnalysis() {
+  const filtered = getFilteredSales();
+  const panel = document.getElementById('item-analysis-list');
+  if (!panel) return;
+  const MRP_MARGIN = 0.175;
+  const map = {};
+  filtered.forEach(s => {
+    (s.items||[]).filter(i=>!i.cancelled && i.product).forEach(item => {
+      const qty = item.qty||1;
+      const rev = (item.price||0)*qty;
+      const decoded = decodeCostCode(item.itemCode);
+      const costPerUnit = decoded !== null ? decoded : (item.price||0)*(1-MRP_MARGIN);
+      const cost = costPerUnit * qty;
+      const profit = rev - cost;
+      const estimated = decoded === null;
+      if (!map[item.product]) map[item.product] = {qty:0,rev:0,cost:0,profit:0,hasEstimated:false};
+      map[item.product].qty    += qty;
+      map[item.product].rev    += rev;
+      map[item.product].cost   += cost;
+      map[item.product].profit += profit;
+      if (estimated) map[item.product].hasEstimated = true;
+    });
+  });
+  const entries = Object.entries(map);
+  if (!entries.length) {
+    panel.innerHTML = `<div style="text-align:center;padding:16px;color:var(--t3);font-size:13px">No items in this period</div>`;
+    return;
+  }
+  entries.sort((a,b) => {
+    if (itemSortMode==="qty")    return b[1].qty-a[1].qty;
+    if (itemSortMode==="rev")    return b[1].rev-a[1].rev;
+    if (itemSortMode==="profit") return b[1].profit-a[1].profit;
+    return 0;
+  });
+  const maxVal = Math.max(...entries.map(e =>
+    itemSortMode==="qty" ? e[1].qty : itemSortMode==="rev" ? e[1].rev : e[1].profit
+  ));
+  const totQty    = entries.reduce((a,e)=>a+e[1].qty,0);
+  const totRev    = entries.reduce((a,e)=>a+e[1].rev,0);
+  const totCost   = entries.reduce((a,e)=>a+e[1].cost,0);
+  const totProfit = entries.reduce((a,e)=>a+e[1].profit,0);
+  const hdr = `<div style="display:grid;grid-template-columns:80px 1fr 30px 70px 58px 58px;gap:4px;padding:6px 12px;background:var(--s3);border-bottom:1px solid var(--b)">
+    <div style="font-size:9px;font-weight:800;color:var(--t3);text-transform:uppercase">Item</div>
+    <div></div>
+    <div style="font-size:9px;font-weight:800;color:var(--t3);text-align:right">Qty</div>
+    <div style="font-size:9px;font-weight:800;color:var(--t3);text-align:right">Revenue</div>
+    <div style="font-size:9px;font-weight:800;color:var(--t3);text-align:right">&#128274;Cost</div>
+    <div style="font-size:9px;font-weight:800;color:var(--g);text-align:right">&#128274;Profit</div>
+  </div>`;
+  const rows = entries.map(([name, d]) => {
+    const barVal = itemSortMode==="qty" ? d.qty : itemSortMode==="rev" ? d.rev : d.profit;
+    const barPct = maxVal > 0 ? Math.max(0, barVal/maxVal*100) : 0;
+    const pc = d.profit>=0 ? "var(--g)" : "var(--r)";
+    return `<div style="display:grid;grid-template-columns:80px 1fr 30px 70px 58px 58px;gap:4px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--b)">
+      <div style="font-size:12px;font-weight:700;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${name}">${name}${d.hasEstimated?"<span style='color:var(--t3);font-size:9px'>~</span>":""}</div>
+      <div style="background:var(--s3);border-radius:3px;height:5px;overflow:hidden"><div style="height:100%;border-radius:3px;background:linear-gradient(90deg,var(--a),var(--a2));width:${barPct.toFixed(1)}%;transition:width .4s"></div></div>
+      <div style="font-size:12px;font-weight:800;color:var(--a);text-align:right">${d.qty}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--t2);text-align:right">&#8377;${Math.round(d.rev).toLocaleString("en-IN")}</div>
+      <div style="font-size:11px;font-weight:700;font-family:monospace;color:var(--t3);text-align:right">${encodeCostCode(Math.abs(d.cost))}</div>
+      <div style="font-size:11px;font-weight:800;font-family:monospace;color:${pc};text-align:right">${d.profit<0?"&#8722;":""}${encodeCostCode(Math.abs(d.profit))}</div>
+    </div>`;
+  }).join("");
+  const footer = `<div style="display:grid;grid-template-columns:80px 1fr 30px 70px 58px 58px;gap:4px;align-items:center;padding:8px 12px;background:var(--s2);border-top:2px solid var(--b)">
+    <div style="font-size:11px;font-weight:800;color:var(--t)">TOTAL</div>
+    <div></div>
+    <div style="font-size:12px;font-weight:800;color:var(--a);text-align:right">${totQty}</div>
+    <div style="font-size:11px;font-weight:800;color:var(--a);text-align:right">&#8377;${Math.round(totRev).toLocaleString("en-IN")}</div>
+    <div style="font-size:11px;font-weight:800;font-family:monospace;color:var(--t2);text-align:right">${encodeCostCode(Math.abs(totCost))}</div>
+    <div style="font-size:11px;font-weight:800;font-family:monospace;color:${totProfit>=0?"var(--g)":"var(--r)"};text-align:right">${totProfit<0?"&#8722;":""}${encodeCostCode(Math.abs(totProfit))}</div>
+  </div>
+  <div style="padding:4px 12px 6px;font-size:9px;color:var(--t3)">~ = estimated 17.5% margin &middot; Cost &amp; Profit in SALEPROFIT cipher</div>`;
+  panel.innerHTML = `<div style="background:var(--surface);border:1.5px solid var(--b);border-radius:var(--radl);overflow:hidden">${hdr}<div>${rows}</div>${footer}</div>`;
+}
+
+function renderHistory() {
+  const filtered = getFilteredSales();
+  const list = document.getElementById('history-list');
+
+  // Update filter stats bar
+  const fsBar = document.getElementById('filter-stats-bar');
+  const isFiltered = currentDateFilter !== 'all' ||
+    (document.getElementById('hist-search')?.value||'') ||
+    (document.getElementById('hist-filter')?.value||'');
+
+  if (isFiltered && filtered.length) {
+    const fRev  = filtered.reduce((a,s)=>a+s.finalAmt,0);
+    const fProf = filtered.filter(s=>s.profit!=null).reduce((a,s)=>a+s.profit,0);
+    const fDisc = filtered.reduce((a,s)=>a+(s.discountAmt||0),0);
+    const fDue  = filtered.filter(s=>s.payInfo?.mode==='due').reduce((a,s)=>a+(s.payInfo.balanceDue||0),0);
+    const label = currentDateFilter==='today' ? 'Today' :
+                  currentDateFilter==='week'  ? 'This Week' :
+                  currentDateFilter==='month' ? 'This Month' :
+                  currentDateFilter==='last30'? 'Last 30 Days' :
+                  currentDateFilter==='custom'? 'Custom Range' : 'Filtered';
+    document.getElementById('filter-stats-label').textContent = `${label} — ${filtered.length} bill${filtered.length>1?'s':''}`;
+    document.getElementById('fs-count').textContent = filtered.length;
+    document.getElementById('fs-rev').textContent = '₹'+fRev.toLocaleString('en-IN');
+    document.getElementById('fs-profit').textContent = '₹'+fProf.toLocaleString('en-IN');
+    document.getElementById('fs-disc').textContent = '₹'+fDisc.toLocaleString('en-IN');
+    document.getElementById('fs-due').textContent = '₹'+fDue.toLocaleString('en-IN');
+    fsBar.style.display = '';
+  } else {
+    fsBar.style.display = 'none';
+  }
+
+  // Update custom range label
+  if (currentDateFilter==='custom') {
+    const from = document.getElementById('df-from')?.value;
+    const to   = document.getElementById('df-to')?.value;
+    const lbl  = document.getElementById('custom-range-label');
+    if (lbl) lbl.textContent = (from||'?') + ' → ' + (to||'?') + ` (${filtered.length} bills)`;
+  }
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📊</div>No sales found</div>`;
+    return;
+  }
 
   const groups = {};
   filtered.forEach(s => { const k=dateKey(s.date); if(!groups[k])groups[k]=[]; groups[k].push(s); });
@@ -1707,10 +1993,10 @@ function renderHistory() {
   let html = '';
   sortedKeys.forEach(key => {
     const gs = groups[key];
-    const gRev = gs.reduce((a,s)=>a+s.finalAmt,0);
+    const gRev    = gs.reduce((a,s)=>a+s.finalAmt,0);
     const gProfit = gs.filter(s=>s.profit!=null).reduce((a,s)=>a+s.profit,0);
-    const gDisc = gs.reduce((a,s)=>a+(s.discountAmt||0),0);
-    const gDue = gs.filter(s=>s.payInfo?.mode==='due').reduce((a,s)=>a+(s.payInfo.balanceDue||0),0);
+    const gDisc   = gs.reduce((a,s)=>a+(s.discountAmt||0),0);
+    const gDue    = gs.filter(s=>s.payInfo?.mode==='due').reduce((a,s)=>a+(s.payInfo.balanceDue||0),0);
     const hasProfit = gs.some(s=>s.profit!=null);
     const col = !!collapsedGroups[key];
 
@@ -1737,10 +2023,6 @@ function renderHistory() {
         const st = new Date(s.date).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
         const pm = s.payInfo ? (picon(s.payInfo.method)+' '+s.payInfo.method) : '';
         const hasDue = s.payInfo?.mode==='due' && s.payInfo.balanceDue>0;
-        const profBadge = s.profit!=null
-          ? `<span class="pbadge ${s.profit>=0?'pos':'neg'}">🔒 ${s.profit>=0?'+':'-'}₹${Math.abs(s.profit).toLocaleString('en-IN')}</span>`
-          : `<span class="pbadge na">No code</span>`;
-
         html += `<div class="sale-card ${s.edited?'edited':''}" onclick="viewSale('${s.id}')">
           <div class="sale-hdr">
             <div>
@@ -1754,7 +2036,6 @@ function renderHistory() {
               <div class="sale-amt" style="${s.edited?'color:var(--o)':''}">₹${s.finalAmt.toLocaleString('en-IN')}</div>
               ${s.discountAmt>0?`<div style="font-size:11px;color:var(--r);margin-top:2px">-₹${s.discountAmt.toLocaleString('en-IN')} off</div>`:''}
               ${hasDue?`<div style="margin-top:3px"><span class="dbadge">⏳ Due ₹${s.payInfo.balanceDue.toLocaleString('en-IN')}</span></div>`:''}
-              <div style="margin-top:4px">${profBadge}</div>
             </div>
           </div>
           <div class="sale-items-list">📦 ${(s.items||[]).map(i=>(i.cancelled?'<s style="color:var(--r)">':'')+i.product+(i.qty>1?` ×${i.qty}`:'')+`${i.cancelled?'</s> ❌':''}`).join(', ')}</div>
@@ -1765,7 +2046,7 @@ function renderHistory() {
   list.innerHTML = html;
 }
 
-function toggleGroup(key) { collapsedGroups[key] = !collapsedGroups[key]; renderHistory(); }
+function toggleGroup(key) { collapsedGroups[key] = !collapsedGroups[key]; renderHistory(); renderItemAnalysis(); }
 
 function viewSale(id) {
   viewingSaleId = id;
@@ -1775,16 +2056,25 @@ function viewSale(id) {
 
   if (sale.profit!=null) {
     const pc = sale.profit>=0 ? 'var(--g)' : 'var(--r)';
+    const profitCode = encodeCostCode(Math.abs(sale.profit));
+    const costCode   = encodeCostCode(Math.abs(sale.totalCost));
     html += `<div style="margin-top:12px;padding:12px;background:var(--gbg);border-radius:10px;border:1px solid var(--gbr)">
       <div style="font-size:10px;color:var(--g);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px">🔒 Owner — Profit</div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--t2)">Total Cost</span><span>₹${sale.totalCost.toLocaleString('en-IN')}</span></div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--t2)">Revenue</span><span>₹${sale.finalAmt.toLocaleString('en-IN')}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span style="color:var(--t2)">Cost</span>
+        <span style="font-family:monospace;font-size:14px;font-weight:800;color:var(--t2)">${costCode}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span style="color:var(--t2)">Revenue</span>
+        <span>₹${sale.finalAmt.toLocaleString('en-IN')}</span>
+      </div>
       ${sale.discountAmt>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--t2)">Discount given</span><span style="color:var(--r)">-₹${sale.discountAmt.toLocaleString('en-IN')}</span></div>`:''}
       <div style="height:1px;background:var(--gbr);margin:8px 0"></div>
-      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800">
-        <span style="color:${pc}">Gross Profit</span>
-        <span style="color:${pc}">${sale.profit>=0?'':'- '}₹${Math.abs(sale.profit).toLocaleString('en-IN')}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:800">
+        <span style="color:${pc}">Profit</span>
+        <span style="font-family:monospace;font-size:20px;letter-spacing:2px;color:${pc}">${sale.profit<0?'−':''}${profitCode}</span>
       </div>
+      <div style="font-size:10px;color:var(--t3);text-align:right;margin-top:3px">Code · SALEPROFIT cipher</div>
     </div>`;
   }
 
@@ -2766,6 +3056,197 @@ function excSendWA() {
 }
 
 // ===================== END EXCHANGE MODULE =====================
+
+// ===================== SETTINGS LOCK =====================
+let settUnlocked = false;
+
+function trySettings(el) {
+  if (settUnlocked) { goTab('settings', el); return; }
+  document.getElementById('set-lock-input').value = '';
+  document.getElementById('set-lock-err').textContent = '';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('settings-lock-screen').style.display = 'flex';
+}
+
+function unlockSettings() {
+  const entered = document.getElementById('set-lock-input').value.trim();
+  if (entered === currentSettPass) {
+    settUnlocked = true;
+    document.getElementById('settings-lock-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    goTab('settings', document.getElementById('tab-settings'));
+  } else {
+    setLockErr('Wrong PIN. Try again.');
+    document.getElementById('set-lock-input').value = '';
+  }
+}
+
+function goToSaleFromSettLock() {
+  document.getElementById('settings-lock-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  goTab('sale', document.getElementById('tab-sale'));
+}
+
+function setLockErr(msg) { document.getElementById('set-lock-err').textContent = msg; }
+
+// ===================== DAILY WHATSAPP SUMMARY =====================
+let autoSendEnabled = false;
+let autoSendTimer = null;
+
+function loadSummarySettings() {
+  try {
+    const t = localStorage.getItem('spt6_summary_time');
+    const e = localStorage.getItem('spt6_summary_enabled');
+    if (t) document.getElementById('set-summary-time').value = t;
+    autoSendEnabled = e === '1';
+    updateAutoSendUI();
+    if (autoSendEnabled) scheduleAutoSend();
+  } catch(e) {}
+}
+
+function toggleAutoSend() {
+  autoSendEnabled = !autoSendEnabled;
+  localStorage.setItem('spt6_summary_enabled', autoSendEnabled ? '1' : '0');
+  updateAutoSendUI();
+  if (autoSendEnabled) scheduleAutoSend();
+  else { clearTimeout(autoSendTimer); document.getElementById('next-send-info').style.display='none'; }
+}
+
+function updateAutoSendUI() {
+  const knob = document.getElementById('auto-send-knob');
+  const toggle = document.getElementById('auto-send-toggle');
+  const lbl = document.getElementById('auto-send-lbl');
+  if (!knob) return;
+  if (autoSendEnabled) {
+    knob.style.left = '25px';
+    toggle.style.background = 'var(--g)';
+    lbl.textContent = 'ON'; lbl.style.color = 'var(--g)';
+  } else {
+    knob.style.left = '3px';
+    toggle.style.background = 'var(--b2)';
+    lbl.textContent = 'OFF'; lbl.style.color = 'var(--t3)';
+  }
+}
+
+function scheduleAutoSend() {
+  clearTimeout(autoSendTimer);
+  const timeVal = document.getElementById('set-summary-time')?.value || '20:00';
+  localStorage.setItem('spt6_summary_time', timeVal);
+  const [hh, mm] = timeVal.split(':').map(Number);
+  const now = new Date();
+  const target = new Date();
+  target.setHours(hh, mm, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1); // tomorrow
+  const delay = target - now;
+
+  const nextInfo = document.getElementById('next-send-info');
+  const nextTime = document.getElementById('next-send-time');
+  if (nextInfo) nextInfo.style.display = '';
+  if (nextTime) nextTime.textContent = target.toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+
+  autoSendTimer = setTimeout(() => {
+    sendDailySummaryNow();
+    if (autoSendEnabled) scheduleAutoSend(); // reschedule for next day
+  }, delay);
+}
+
+function buildDailySummaryMsg() {
+  const tk = todayKey();
+  const todaySales = sales.filter(s => dateKey(s.date) === tk);
+  const todayExc   = exchanges.filter(e => dateKey(e.date) === tk);
+
+  if (!todaySales.length && !todayExc.length) return null;
+
+  const rev    = todaySales.reduce((a,s)=>a+s.finalAmt,0);
+  const disc   = todaySales.reduce((a,s)=>a+(s.discountAmt||0),0);
+  const profit = todaySales.filter(s=>s.profit!=null).reduce((a,s)=>a+s.profit,0);
+  const hasProfit = todaySales.some(s=>s.profit!=null);
+  const due    = todaySales.filter(s=>s.payInfo?.mode==='due').reduce((a,s)=>a+(s.payInfo.balanceDue||0),0);
+  const avg    = todaySales.length ? Math.round(rev/todaySales.length) : 0;
+
+  // Per-salesman breakdown
+  const byStaff = {};
+  todaySales.forEach(s => {
+    if (!byStaff[s.salesman]) byStaff[s.salesman] = {bills:0, rev:0};
+    byStaff[s.salesman].bills++;
+    byStaff[s.salesman].rev += s.finalAmt;
+  });
+
+  // Payment method breakdown
+  const byPay = {};
+  todaySales.forEach(s => {
+    const m = s.payInfo?.mode==='split'
+      ? Object.keys(s.payInfo.breakdown||{}).join('+')
+      : (s.payInfo?.method||'Unknown');
+    byPay[m] = (byPay[m]||0) + s.finalAmt;
+  });
+
+  const date = new Date().toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+
+  let msg = `📊 *DAILY SALES SUMMARY*\n🏪 ${S.shopName}\n📅 ${date}\n`;
+  msg += `${'─'.repeat(30)}\n\n`;
+
+  msg += `💰 *REVENUE*\n`;
+  msg += `  Total Bills: *${todaySales.length}*\n`;
+  msg += `  Total Revenue: *₹${rev.toLocaleString('en-IN')}*\n`;
+  msg += `  Avg Bill: ₹${avg.toLocaleString('en-IN')}\n`;
+  if (disc > 0) msg += `  Discount Given: -₹${disc.toLocaleString('en-IN')}\n`;
+  if (due > 0)  msg += `  ⏳ Balance Due: ₹${due.toLocaleString('en-IN')}\n`;
+  if (hasProfit) msg += `  🔒 Gross Profit: *₹${profit.toLocaleString('en-IN')}*\n`;
+
+  if (Object.keys(byStaff).length > 1) {
+    msg += `\n👥 *BY STAFF*\n`;
+    Object.entries(byStaff).forEach(([name,d]) => {
+      msg += `  ${name}: ${d.bills} bill${d.bills>1?'s':''} · ₹${d.rev.toLocaleString('en-IN')}\n`;
+    });
+  }
+
+  if (Object.keys(byPay).length) {
+    msg += `\n💳 *PAYMENT METHODS*\n`;
+    Object.entries(byPay).forEach(([m,a]) => {
+      msg += `  ${picon(m)} ${m}: ₹${a.toLocaleString('en-IN')}\n`;
+    });
+  }
+
+  if (todayExc.length) {
+    const excVal = todayExc.reduce((a,e)=>a+e.returnTotal,0);
+    msg += `\n🔄 *EXCHANGES / RETURNS*\n`;
+    msg += `  Count: ${todayExc.length}\n`;
+    msg += `  Value: ₹${excVal.toLocaleString('en-IN')}\n`;
+  }
+
+  // Top items sold today
+  const itemCount = {};
+  todaySales.forEach(s => (s.items||[]).filter(i=>!i.cancelled).forEach(i => {
+    itemCount[i.product] = (itemCount[i.product]||0) + (i.qty||1);
+  }));
+  const topItems = Object.entries(itemCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if (topItems.length) {
+    msg += `\n📦 *TOP ITEMS TODAY*\n`;
+    topItems.forEach(([p,q]) => { msg += `  ${p}: ${q} sold\n`; });
+  }
+
+  msg += `\n${'─'.repeat(30)}\n`;
+  msg += `_Sent from ${S.shopName} Sales Tracker_ 🙏`;
+  return msg;
+}
+
+function sendDailySummaryNow() {
+  if (!S.ownerMobile) { alert('Set your Owner WhatsApp number in Shop Info first'); return; }
+  const msg = buildDailySummaryMsg();
+  if (!msg) { alert('No sales recorded today yet!'); return; }
+  closeModal('summary-modal');
+  window.open(`https://wa.me/${S.ownerMobile}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function previewDailySummary() {
+  const msg = buildDailySummaryMsg();
+  if (!msg) { alert('No sales recorded today yet!'); return; }
+  document.getElementById('summary-preview-content').textContent = msg;
+  openModal('summary-modal');
+}
+
+// ===================== END DAILY SUMMARY =====================
 
 loadTheme();
 init();
