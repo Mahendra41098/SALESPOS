@@ -926,8 +926,8 @@ function setSyncState(state, msg) {
   const txt    = document.getElementById('cloud-status-text');
   const map = {
     idle:    { b:'⏳', i:'⏳', t:'Connecting...' },
-    syncing: { b:'🔄', i:'🔄', t:'Syncing with Firebase...' },
-    ok:      { b:'☁️', i:'✅', t: msg || 'Synced — data is up to date' },
+    syncing: { b:'🔄', i:'🔄', t:'Connecting to Firebase...' },
+    ok:      { b:'🟢', i:'✅', t: msg || 'Live — all devices in sync' },
     error:   { b:'❌', i:'❌', t: msg || 'Sync error — working offline' },
   };
   const m = map[state] || map.idle;
@@ -980,51 +980,123 @@ function safeJSON(str, fallback) {
   try { return typeof str === 'string' ? JSON.parse(str) : (str || fallback); } catch(e) { return fallback; }
 }
 
-// Push one sale to Firebase
+// ---- Push one sale to Firebase ----
 async function pushSaleToCloud(sale) {
-  setSyncState('syncing');
   try {
     await db.collection(COLL).doc(sale.id).set(saleToDoc(sale));
-    setSyncState('ok', `Saved — ${new Date().toLocaleTimeString('en-IN')}`);
+    // onSnapshot will update UI automatically on all devices
   } catch(e) {
-    setSyncState('error', 'Save failed — sale stored locally');
+    setSyncState('error', 'Save failed — stored locally');
     console.error('Firebase push error:', e.message);
   }
 }
 
-// Delete one sale from Firebase
+// ---- Delete one sale from Firebase ----
 async function deleteSaleFromCloud(id) {
   try { await db.collection(COLL).doc(id).delete(); } catch(e) { console.error('Firebase delete error:', e.message); }
 }
 
-// Load all sales from Firebase (called on startup and on manual sync)
-async function loadSalesFromCloud() {
-  setSyncState('syncing');
+// ---- Push one exchange to Firebase ----
+async function pushExchangeToCloud(exc) {
   try {
-    const snap = await db.collection(COLL)
-      .orderBy('date', 'desc')
-      .limit(5000)
-      .get();
+    await db.collection(EXC_COLL).doc(exc.id).set(excToDoc(exc));
+  } catch(e) { console.error('Exchange cloud push error:', e.message); }
+}
 
-    if (!snap.empty) {
+// ---- Delete one exchange from Firebase ----
+async function deleteExchangeFromCloud(id) {
+  try { await db.collection(EXC_COLL).doc(id).delete(); } catch(e) {}
+}
+
+// ---- Convert exchange → Firestore flat doc ----
+function excToDoc(exc) {
+  return {
+    id:          exc.id,
+    date:        exc.date,
+    salesman:    exc.salesman    || '',
+    custName:    exc.custName    || '',
+    custMobile:  exc.custMobile  || '',
+    origBillId:  exc.origBillId  || '',
+    type:        exc.type        || 'return',
+    returnItems: JSON.stringify(exc.returnItems || []),
+    newItems:    JSON.stringify(exc.newItems    || []),
+    returnTotal: exc.returnTotal || 0,
+    newTotal:    exc.newTotal    || 0,
+    diffAmt:     exc.diffAmt     || 0,
+    payMethod:   exc.payMethod   || '',
+    reason:      exc.reason      || '',
+    savedAt:     firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+
+// ---- Convert Firestore doc → exchange object ----
+function docToExc(d) {
+  return {
+    id:          d.id,
+    date:        d.date,
+    salesman:    d.salesman,
+    custName:    d.custName,
+    custMobile:  d.custMobile,
+    origBillId:  d.origBillId,
+    type:        d.type,
+    returnItems: safeJSON(d.returnItems, []),
+    newItems:    safeJSON(d.newItems,    []),
+    returnTotal: d.returnTotal,
+    newTotal:    d.newTotal,
+    diffAmt:     d.diffAmt,
+    payMethod:   d.payMethod,
+    reason:      d.reason
+  };
+}
+
+// ---- Real-time listeners (onSnapshot) ----
+let unsubSales = null;
+let unsubExchanges = null;
+
+function startRealtimeListeners() {
+  setSyncState('syncing');
+
+  // --- SALES listener ---
+  if (unsubSales) unsubSales(); // detach any previous listener
+  unsubSales = db.collection(COLL)
+    .orderBy('date', 'desc')
+    .limit(5000)
+    .onSnapshot(snap => {
       sales = snap.docs.map(doc => docToSale(doc.data()));
-      saveSales(); // keep localStorage in sync as offline backup
-    }
-    setSyncState('ok', `${sales.length} sales loaded — ${new Date().toLocaleTimeString('en-IN')}`);
-    renderHistoryStats();
-    renderHistory();
-  } catch(e) {
-    setSyncState('error', 'Cloud load failed — showing local data');
-    console.error('Firebase load error:', e.message);
-  }
+      saveSales(); // keep localStorage as offline backup
+      setSyncState('ok', `Live · ${sales.length} sales · ${new Date().toLocaleTimeString('en-IN')}`);
+
+      // Refresh whichever tabs are currently visible
+      const histActive = document.getElementById('page-history')?.classList.contains('active');
+      if (histActive) { renderHistoryStats(); renderHistory(); }
+
+      // Always keep in-memory fresh so exchange fetch works
+    }, err => {
+      setSyncState('error', 'Realtime sync lost — working offline');
+      console.error('Sales snapshot error:', err.message);
+    });
+
+  // --- EXCHANGES listener ---
+  if (unsubExchanges) unsubExchanges();
+  unsubExchanges = db.collection(EXC_COLL)
+    .orderBy('date', 'desc')
+    .limit(2000)
+    .onSnapshot(snap => {
+      exchanges = snap.docs.map(doc => docToExc(doc.data()));
+      saveExchanges(); // local backup
+      const excActive = document.getElementById('page-exchange')?.classList.contains('active');
+      if (excActive) { renderExchangeHistory(); renderExcStats(); }
+    }, err => {
+      console.error('Exchanges snapshot error:', err.message);
+    });
 }
 
-// Manual sync button
+// ---- Manual sync button — just reconnects the listeners ----
 function manualSync() {
-  loadSalesFromCloud();
+  startRealtimeListeners();
 }
 
-// Migrate all localStorage sales to Firebase (one-time use)
+// ---- Migrate local → Firebase (one-time) ----
 async function migrateLocalToCloud() {
   const local = (() => { try { return JSON.parse(localStorage.getItem('spt6_sales') || '[]'); } catch(e) { return []; } })();
   if (!local.length) { alert('No local sales found to migrate.'); return; }
@@ -1034,9 +1106,8 @@ async function migrateLocalToCloud() {
   for (const sale of local) {
     try { await db.collection(COLL).doc(sale.id).set(saleToDoc(sale)); count++; } catch(e) { console.error('Migrate error:', e.message); }
   }
-  setSyncState('ok', `${count}/${local.length} sales uploaded`);
   alert(`Done! ${count} of ${local.length} sales uploaded to Firebase.`);
-  loadSalesFromCloud();
+  // onSnapshot will automatically pick up the new docs
 }
 
 // ===================== INIT =====================
@@ -1059,8 +1130,8 @@ function init() {
   renderCodeTable();
   renderPayMethodsSet();
   renderSalesmanFilter();
-  // Load from Firebase — updates UI automatically when done
-  loadSalesFromCloud();
+  // Start real-time listeners — all devices stay in sync automatically
+  startRealtimeListeners();
 }
 
 function updateNavBrand() {
@@ -1123,7 +1194,7 @@ function goTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   el.classList.add('active');
-  if (name === 'history') { renderHistoryStats(); renderHistory(); }
+  if (name === 'history')  { renderHistoryStats(); renderHistory(); }
   if (name === 'settings') { populateSettingsForm(); renderSettingSalesmen(); renderSettingProducts(); renderCodeTable(); renderPayMethodsSet(); renderThemeSwatches(); }
   if (name === 'exchange') { initExchange(); }
 }
@@ -2139,18 +2210,6 @@ function loadExchanges() {
 }
 function saveExchanges() {
   try { localStorage.setItem(EXC_KEY, JSON.stringify(exchanges)); } catch(e){}
-}
-async function pushExchangeToCloud(exc) {
-  try {
-    await db.collection(EXC_COLL).doc(exc.id).set({
-      ...exc,
-      returnItems: JSON.stringify(exc.returnItems||[]),
-      newItems: JSON.stringify(exc.newItems||[])
-    });
-  } catch(e) { console.error('Exchange cloud push error:', e.message); }
-}
-async function deleteExchangeFromCloud(id) {
-  try { await db.collection(EXC_COLL).doc(id).delete(); } catch(e){}
 }
 
 function initExchange() {
