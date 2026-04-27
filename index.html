@@ -690,27 +690,34 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
     </div>
   </div>
 
-  <div class="sec">🔒 Cost Price Codes</div>
+  <div class="sec">🔒 Cost Price Cipher</div>
   <div class="card">
-    <div style="font-size:12px;color:var(--t2);margin-bottom:11px;padding:9px;background:var(--abg2);border-radius:8px;border:1px solid rgba(232,24,90,.2)">
-      Map a short code to cost price. Example: <strong style="color:var(--a)">ATP = ₹205</strong> for Watch. Never shown on bill.
+    <div style="font-size:12px;color:var(--t2);margin-bottom:12px;padding:10px;background:var(--abg2);border-radius:8px;border:1px solid rgba(232,24,90,.2);line-height:1.7">
+      Enter item codes using these letters. The app automatically decodes the cost price — no setup needed.<br>
+      Example: <strong style="color:var(--a);font-family:monospace">SALE</strong> → ₹<strong style="color:var(--a)">1234</strong> &nbsp;|&nbsp; <strong style="color:var(--a);font-family:monospace">PRO</strong> → ₹<strong style="color:var(--a)">567</strong>
     </div>
-    <label>Master Profit View Code</label>
-    <input type="text" id="set-profit-code" placeholder="e.g. SALEPROFIT">
-    <div style="height:1px;background:var(--b);margin:12px 0"></div>
-    <table class="code-table">
-      <thead><tr><th>Code</th><th>Product</th><th>Cost ₹</th><th></th></tr></thead>
-      <tbody id="code-table-body"></tbody>
-    </table>
-    <div style="margin-top:9px">
-      <div class="r3">
-        <input type="text" id="new-code" placeholder="Code">
-        <input type="text" id="new-code-product" placeholder="Product">
-        <input type="number" id="new-code-cost" placeholder="₹">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:4px">
+      ${[['S','1'],['A','2'],['L','3'],['E','4'],['P','5'],['R','6'],['O','7'],['F','8'],['I','9'],['T','0']].map(([l,n])=>`
+        <div style="background:var(--s3);border:1.5px solid var(--b2);border-radius:8px;padding:8px 4px;text-align:center">
+          <div style="font-size:18px;font-weight:800;color:var(--a);font-family:monospace">${l}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--t2)">${n}</div>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:10px;padding:9px;background:var(--s2);border-radius:8px;border:1px solid var(--b)">
+      <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Quick reference</div>
+      <div style="font-size:12px;color:var(--t2);line-height:2">
+        <span style="font-family:monospace;color:var(--a)">S</span>=1 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">A</span>=2 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">L</span>=3 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">E</span>=4 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">P</span>=5 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">R</span>=6 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">O</span>=7 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">F</span>=8 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">I</span>=9 &nbsp;
+        <span style="font-family:monospace;color:var(--a)">T</span>=0
       </div>
-      <button class="btn btn-ghost" style="margin-top:7px" onclick="addCostCode()">+ Add Code</button>
     </div>
-    <div style="margin-top:11px"><button class="btn btn-primary" onclick="saveCostCodes()">Save Codes</button></div>
   </div>
 
   <div class="sec">Payment Methods</div>
@@ -976,6 +983,24 @@ function docToSale(d) {
     payInfo:     safeJSON(d.payInfo, {})
   };
 }
+// ===================== SALEPROFIT COST DECODER =====================
+// S=1, A=2, L=3, E=4, P=5, R=6, O=7, F=8, I=9, T=0
+const CIPHER = {S:'1',A:'2',L:'3',E:'4',P:'5',R:'6',O:'7',F:'8',I:'9',T:'0'};
+
+function decodeCostCode(code) {
+  if (!code) return null;
+  const upper = code.toUpperCase();
+  let digits = '';
+  for (const ch of upper) {
+    if (CIPHER[ch] !== undefined) digits += CIPHER[ch];
+    else return null; // unknown character → not a valid cipher code
+  }
+  if (!digits) return null;
+  const val = parseFloat(digits);
+  return isNaN(val) ? null : val;
+}
+// ====================================================================
+
 function safeJSON(str, fallback) {
   try { return typeof str === 'string' ? JSON.parse(str) : (str || fallback); } catch(e) { return fallback; }
 }
@@ -1127,7 +1152,6 @@ function init() {
   populateSettingsForm();
   renderSettingSalesmen();
   renderSettingProducts();
-  renderCodeTable();
   renderPayMethodsSet();
   renderSalesmanFilter();
   // Start real-time listeners — all devices stay in sync automatically
@@ -1195,7 +1219,7 @@ function goTab(name, el) {
   document.getElementById('page-' + name).classList.add('active');
   el.classList.add('active');
   if (name === 'history')  { renderHistoryStats(); renderHistory(); }
-  if (name === 'settings') { populateSettingsForm(); renderSettingSalesmen(); renderSettingProducts(); renderCodeTable(); renderPayMethodsSet(); renderThemeSwatches(); }
+  if (name === 'settings') { populateSettingsForm(); renderSettingSalesmen(); renderSettingProducts(); renderPayMethodsSet(); renderThemeSwatches(); }
   if (name === 'exchange') { initExchange(); }
 }
 
@@ -1220,7 +1244,16 @@ function removeItem(id) {
   calcAll();
 }
 function renderItems() {
-  document.getElementById('items-container').innerHTML = currentItems.map((item, idx) => `
+  document.getElementById('items-container').innerHTML = currentItems.map((item, idx) => {
+    const decoded = decodeCostCode(item.itemCode);
+    const qty = item.qty||1;
+    const costHint = decoded !== null
+      ? `<div style="margin-top:4px;padding:5px 8px;background:var(--gbg);border:1px solid var(--gbr);border-radius:7px;display:flex;justify-content:space-between;align-items:center">
+           <span style="font-size:10px;color:var(--g);font-weight:700">🔒 Cost decoded</span>
+           <span style="font-size:12px;font-weight:800;color:var(--g)">₹${(decoded*qty).toLocaleString('en-IN')}${qty>1?' (₹'+decoded+' × '+qty+')':''}</span>
+         </div>`
+      : (item.itemCode ? `<div style="margin-top:4px;font-size:10px;color:var(--t3);padding:3px 6px">⚠ Unknown code — use S A L E P R O F I T letters only</div>` : '');
+    return `
     <div class="item-row" id="row-${item.id}">
       <div class="item-row-hdr">
         <span class="item-label">Item ${idx+1}${item.product?' — '+item.product:''}</span>
@@ -1233,10 +1266,11 @@ function renderItems() {
       </div>
       <div class="r2">
         <div>
-          <label>Item Code (optional)</label>
-          <input type="text" placeholder="e.g. ATP" value="${item.itemCode}"
+          <label>Cost Code <span style="font-size:9px;color:var(--t3);font-weight:400">(SALEPROFIT letters)</span></label>
+          <input type="text" placeholder="e.g. SAL = ₹123" value="${item.itemCode}"
             oninput="itemChg('${item.id}','itemCode',this.value.toUpperCase());this.value=this.value.toUpperCase()"
             style="font-family:monospace;letter-spacing:1px;font-weight:700">
+          ${costHint}
         </div>
         <div><label>Qty</label><input type="number" value="${item.qty}" min="1" oninput="itemChg('${item.id}','qty',+this.value||1)"></div>
       </div>
@@ -1246,7 +1280,8 @@ function renderItems() {
           oninput="itemChg('${item.id}','price',+this.value)"
           style="font-size:18px;font-weight:700;text-align:right;color:var(--a)">
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function selectProduct(id, p) {
   const item = currentItems.find(x => x.id === id); if (!item) return;
@@ -1342,12 +1377,12 @@ function calcAll() {
     document.getElementById('paid-adj-pct').style.color = effPct>=0 ? 'var(--r)' : 'var(--g)';
   } else ps.style.display = 'none';
 
-  // Profit
+  // Profit — auto-decode item codes using SALEPROFIT cipher
   let cost=0, hasCost=false;
   currentItems.forEach(item => {
     const q = item.qty||1;
-    const m = S.costCodes.find(c => c.code.toUpperCase() === (item.itemCode||'').toUpperCase());
-    if (m) { cost += m.cost*q; hasCost = true; }
+    const decoded = decodeCostCode(item.itemCode);
+    if (decoded !== null) { cost += decoded * q; hasCost = true; }
   });
   const pr = document.getElementById('profit-row');
   if (hasCost) {
@@ -1429,10 +1464,9 @@ function getSaleData() {
   let cost=0, hasCost=false;
   const enriched = items.map(item => {
     const q = item.qty||1;
-    const m = S.costCodes.find(c => c.code.toUpperCase()===(item.itemCode||'').toUpperCase());
-    const c = m ? m.cost : null;
-    if (c!=null) { cost += c*q; hasCost = true; }
-    return {...item, costPerUnit:c};
+    const c = decodeCostCode(item.itemCode); // auto-decode via SALEPROFIT cipher
+    if (c !== null) { cost += c*q; hasCost = true; }
+    return {...item, costPerUnit: c};
   });
 
   // Payment info
@@ -1790,7 +1824,6 @@ function populateSettingsForm() {
   document.getElementById('set-address').value = S.address;
   document.getElementById('set-owner-mobile').value = S.ownerMobile;
   document.getElementById('set-owner-name').value = S.ownerName;
-  document.getElementById('set-profit-code').value = S.profitCode;
 }
 function saveShopInfo() {
   S.shopName = document.getElementById('set-shop-name').value.trim() || S.shopName;
@@ -1823,22 +1856,6 @@ function addProductItem() {
 }
 function removeProduct(i) { S.products.splice(i,1); saveS(); renderSettingProducts(); renderItems(); }
 
-function renderCodeTable() {
-  document.getElementById('code-table-body').innerHTML = S.costCodes.map((c,i)=>
-    `<tr><td>${c.code}</td><td style="color:var(--t)">${c.product}</td><td style="color:var(--g)">₹${c.cost}</td>
-    <td><button class="rm-btn" onclick="removeCostCode(${i})">✕</button></td></tr>`).join('');
-}
-function addCostCode() {
-  const code=document.getElementById('new-code').value.trim().toUpperCase();
-  const product=document.getElementById('new-code-product').value.trim();
-  const cost=parseFloat(document.getElementById('new-code-cost').value);
-  if(!code||!product||isNaN(cost)){alert('Fill all three fields');return;}
-  S.costCodes.push({code,product,cost});
-  ['new-code','new-code-product','new-code-cost'].forEach(id=>document.getElementById(id).value='');
-  renderCodeTable();
-}
-function removeCostCode(i) { S.costCodes.splice(i,1); renderCodeTable(); }
-function saveCostCodes() { S.profitCode=document.getElementById('set-profit-code').value.trim(); saveS(); alert('Codes saved!'); }
 
 function renderPayMethodsSet() {
   document.getElementById('pay-methods-set').innerHTML = S.payMethods.map((m,i)=>
