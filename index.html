@@ -601,8 +601,10 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
     <button class="btn btn-ghost btn-sm" onclick="lockHistoryNow()">🔒 Lock</button>
     <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost btn-sm" onclick="downloadExcel()" style="width:auto;background:rgba(34,197,94,.15);border-color:var(--gbr);color:var(--g)">⬇ Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="downloadPDF()" style="width:auto;background:rgba(232,24,90,.1);border-color:rgba(232,24,90,.3);color:var(--a)">⬇ PDF</button>
       <button class="btn btn-ghost btn-sm" onclick="openModal('change-sett-pass-modal')" style="width:auto">⚙️ PIN</button>
-      <button class="btn btn-red btn-sm" onclick="confirmClearHistory()" style="width:auto">🗑 Clear</button>
+      <button class="btn btn-red btn-sm" onclick="confirmClearHistory()" style="width:auto">🗑</button>
     </div>
   </div>
 
@@ -1487,19 +1489,7 @@ function calcAll() {
   } else ps.style.display = 'none';
 
   // Profit — auto-decode item codes using SALEPROFIT cipher
-  let cost=0, hasCost=false;
-  currentItems.forEach(item => {
-    const q = item.qty||1;
-    const decoded = decodeCostCode(item.itemCode);
-    if (decoded !== null) { cost += decoded * q; hasCost = true; }
-  });
-  const pr = document.getElementById('profit-row');
-  if (hasCost) {
-    const profit = finalAmt - cost;
-    document.getElementById('sum-profit').textContent = (profit>=0?'':'- ')+'₹'+Math.abs(profit).toLocaleString('en-IN');
-    document.getElementById('sum-profit').style.color = profit>=0 ? 'var(--g)' : 'var(--r)';
-    pr.style.display = '';
-  } else pr.style.display = 'none';
+  // Profit intentionally NOT shown on sale page — visible only in History (owner only)
 
   // Update due balance
   calcDue();
@@ -1914,8 +1904,8 @@ function renderItemAnalysis() {
     <div></div>
     <div style="font-size:9px;font-weight:800;color:var(--t3);text-align:right">Qty</div>
     <div style="font-size:9px;font-weight:800;color:var(--t3);text-align:right">Revenue</div>
-    <div style="font-size:9px;font-weight:800;color:var(--t3);text-align:right">&#128274;Cost</div>
-    <div style="font-size:9px;font-weight:800;color:var(--g);text-align:right">&#128274;Profit</div>
+    <div style="font-size:9px;font-weight:800;color:var(--t3);text-align:right">Cost ₹</div>
+    <div style="font-size:9px;font-weight:800;color:var(--g);text-align:right">Profit ₹</div>
   </div>`;
   const rows = entries.map(([name, d]) => {
     const barVal = itemSortMode==="qty" ? d.qty : itemSortMode==="rev" ? d.rev : d.profit;
@@ -1926,8 +1916,8 @@ function renderItemAnalysis() {
       <div style="background:var(--s3);border-radius:3px;height:5px;overflow:hidden"><div style="height:100%;border-radius:3px;background:linear-gradient(90deg,var(--a),var(--a2));width:${barPct.toFixed(1)}%;transition:width .4s"></div></div>
       <div style="font-size:12px;font-weight:800;color:var(--a);text-align:right">${d.qty}</div>
       <div style="font-size:11px;font-weight:700;color:var(--t2);text-align:right">&#8377;${Math.round(d.rev).toLocaleString("en-IN")}</div>
-      <div style="font-size:11px;font-weight:700;font-family:monospace;color:var(--t3);text-align:right">${encodeCostCode(Math.abs(d.cost))}</div>
-      <div style="font-size:11px;font-weight:800;font-family:monospace;color:${pc};text-align:right">${d.profit<0?"&#8722;":""}${encodeCostCode(Math.abs(d.profit))}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--t3);text-align:right">&#8377;${Math.round(d.cost).toLocaleString("en-IN")}</div>
+      <div style="font-size:11px;font-weight:800;color:${pc};text-align:right">${d.profit<0?"-":""}&#8377;${Math.round(Math.abs(d.profit)).toLocaleString("en-IN")}</div>
     </div>`;
   }).join("");
   const footer = `<div style="display:grid;grid-template-columns:80px 1fr 30px 70px 58px 58px;gap:4px;align-items:center;padding:8px 12px;background:var(--s2);border-top:2px solid var(--b)">
@@ -1935,10 +1925,10 @@ function renderItemAnalysis() {
     <div></div>
     <div style="font-size:12px;font-weight:800;color:var(--a);text-align:right">${totQty}</div>
     <div style="font-size:11px;font-weight:800;color:var(--a);text-align:right">&#8377;${Math.round(totRev).toLocaleString("en-IN")}</div>
-    <div style="font-size:11px;font-weight:800;font-family:monospace;color:var(--t2);text-align:right">${encodeCostCode(Math.abs(totCost))}</div>
-    <div style="font-size:11px;font-weight:800;font-family:monospace;color:${totProfit>=0?"var(--g)":"var(--r)"};text-align:right">${totProfit<0?"&#8722;":""}${encodeCostCode(Math.abs(totProfit))}</div>
+    <div style="font-size:11px;font-weight:800;color:var(--t2);text-align:right">&#8377;${Math.round(totCost).toLocaleString("en-IN")}</div>
+    <div style="font-size:11px;font-weight:800;color:${totProfit>=0?"var(--g)":"var(--r)"};text-align:right">${totProfit<0?"-":""}&#8377;${Math.round(Math.abs(totProfit)).toLocaleString("en-IN")}</div>
   </div>
-  <div style="padding:4px 12px 6px;font-size:9px;color:var(--t3)">~ = estimated 17.5% margin &middot; Cost &amp; Profit in SALEPROFIT cipher</div>`;
+  <div style="padding:4px 12px 6px;font-size:9px;color:var(--t3)">~ = estimated at 17.5% margin (no code entered)</div>`;
   panel.innerHTML = `<div style="background:var(--surface);border:1.5px solid var(--b);border-radius:var(--radl);overflow:hidden">${hdr}<div>${rows}</div>${footer}</div>`;
 }
 
@@ -2056,25 +2046,26 @@ function viewSale(id) {
 
   if (sale.profit!=null) {
     const pc = sale.profit>=0 ? 'var(--g)' : 'var(--r)';
-    const profitCode = encodeCostCode(Math.abs(sale.profit));
-    const costCode   = encodeCostCode(Math.abs(sale.totalCost));
     html += `<div style="margin-top:12px;padding:12px;background:var(--gbg);border-radius:10px;border:1px solid var(--gbr)">
-      <div style="font-size:10px;color:var(--g);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px">🔒 Owner — Profit</div>
+      <div style="font-size:10px;color:var(--g);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px">🔒 Owner — Profit Analysis</div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-        <span style="color:var(--t2)">Cost</span>
-        <span style="font-family:monospace;font-size:14px;font-weight:800;color:var(--t2)">${costCode}</span>
+        <span style="color:var(--t2)">Total Cost</span>
+        <span style="font-weight:700">₹${Math.round(sale.totalCost).toLocaleString('en-IN')}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
         <span style="color:var(--t2)">Revenue</span>
-        <span>₹${sale.finalAmt.toLocaleString('en-IN')}</span>
+        <span style="font-weight:700">₹${sale.finalAmt.toLocaleString('en-IN')}</span>
       </div>
       ${sale.discountAmt>0?`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--t2)">Discount given</span><span style="color:var(--r)">-₹${sale.discountAmt.toLocaleString('en-IN')}</span></div>`:''}
       <div style="height:1px;background:var(--gbr);margin:8px 0"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:800">
-        <span style="color:${pc}">Profit</span>
-        <span style="font-family:monospace;font-size:20px;letter-spacing:2px;color:${pc}">${sale.profit<0?'−':''}${profitCode}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:15px;font-weight:800;color:${pc}">Gross Profit</span>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:800;color:${pc}">${sale.profit<0?'- ':''}₹${Math.abs(Math.round(sale.profit)).toLocaleString('en-IN')}</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">${sale.finalAmt>0?(Math.round(sale.profit/sale.finalAmt*100)):'0'}% margin</div>
+        </div>
       </div>
-      <div style="font-size:10px;color:var(--t3);text-align:right;margin-top:3px">Code · SALEPROFIT cipher</div>
+      ${(sale.items||[]).some(i=>i.estimated)?`<div style="font-size:10px;color:var(--t3);margin-top:8px;padding-top:6px;border-top:1px dashed var(--gbr)">~ Some items estimated at 17.5% margin (no code)</div>`:''}
     </div>`;
   }
 
@@ -3247,6 +3238,166 @@ function previewDailySummary() {
 }
 
 // ===================== END DAILY SUMMARY =====================
+
+// ===================== EXPORT: EXCEL & PDF =====================
+function getExportData() {
+  const filtered = getFilteredSales();
+  const MRP_MARGIN = 0.175;
+  return filtered.map(s => {
+    const itemNames = (s.items||[]).filter(i=>!i.cancelled).map(i=>i.product+(i.qty>1?` ×${i.qty}`:'')).join(', ');
+    let cost = 0;
+    (s.items||[]).filter(i=>!i.cancelled).forEach(item => {
+      const q = item.qty||1;
+      const decoded = decodeCostCode(item.itemCode);
+      cost += decoded !== null ? decoded*q : (item.price||0)*q*(1-MRP_MARGIN);
+    });
+    const profit = s.finalAmt - cost;
+    const margin = s.finalAmt > 0 ? Math.round(profit/s.finalAmt*100) : 0;
+    return {
+      'Date':        new Date(s.date).toLocaleDateString('en-IN'),
+      'Time':        new Date(s.date).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),
+      'Bill ID':     s.id,
+      'Staff':       s.salesman,
+      'Customer':    s.custName||'',
+      'Mobile':      s.custMobile||'',
+      'Items':       itemNames,
+      'MRP Total':   s.itemsTotal||s.finalAmt,
+      'Discount ₹':  s.discountAmt||0,
+      'Final Amt ₹': s.finalAmt,
+      'Cost ₹':      Math.round(cost),
+      'Profit ₹':    Math.round(profit),
+      'Margin %':    margin,
+      'Payment':     s.payInfo?.method||'',
+      'Due ₹':       s.payInfo?.balanceDue||0,
+    };
+  });
+}
+
+function downloadExcel() {
+  const rows = getExportData();
+  if (!rows.length) { alert('No sales data to export'); return; }
+  const cols = Object.keys(rows[0]);
+  const escape = v => `"${String(v).replace(/"/g,'""')}"`;
+  const csv = [cols.map(escape).join(','), ...rows.map(r => cols.map(c=>escape(r[c])).join(','))].join('\r\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const label = currentDateFilter==='today'?'Today':currentDateFilter==='week'?'ThisWeek':currentDateFilter==='month'?'ThisMonth':currentDateFilter==='last30'?'Last30Days':'AllData';
+  a.download = `${S.shopName.replace(/\s+/g,'_')}_Sales_${label}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function downloadPDF() {
+  const rows = getExportData();
+  if (!rows.length) { alert('No sales data to export'); return; }
+  const label = currentDateFilter==='today'?'Today':currentDateFilter==='week'?'This Week':currentDateFilter==='month'?'This Month':currentDateFilter==='last30'?'Last 30 Days':'All Time';
+  const totRev    = rows.reduce((a,r)=>a+r['Final Amt ₹'],0);
+  const totProfit = rows.reduce((a,r)=>a+r['Profit ₹'],0);
+  const totDisc   = rows.reduce((a,r)=>a+r['Discount ₹'],0);
+  const totDue    = rows.reduce((a,r)=>a+r['Due ₹'],0);
+  const avgMargin = rows.length ? Math.round(totProfit/totRev*100) : 0;
+
+  // Item analysis
+  const imap = {};
+  getFilteredSales().forEach(s => {
+    (s.items||[]).filter(i=>!i.cancelled&&i.product).forEach(item => {
+      const q=item.qty||1; const rev=(item.price||0)*q;
+      const decoded=decodeCostCode(item.itemCode);
+      const cost=decoded!==null?decoded*q:rev*(1-0.175);
+      if(!imap[item.product])imap[item.product]={qty:0,rev:0,cost:0,profit:0};
+      imap[item.product].qty+=q; imap[item.product].rev+=rev;
+      imap[item.product].cost+=cost; imap[item.product].profit+=rev-cost;
+    });
+  });
+  const irows = Object.entries(imap).sort((a,b)=>b[1].rev-a[1].rev);
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>${S.shopName} — Sales Report</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:24px}
+    h1{font-size:20px;font-weight:800;color:#e8185a;margin-bottom:2px}
+    h2{font-size:14px;font-weight:700;color:#333;margin:18px 0 8px}
+    .sub{font-size:11px;color:#666;margin-bottom:16px}
+    .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+    .stat{background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:10px;text-align:center}
+    .stat-lbl{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .stat-val{font-size:16px;font-weight:800;color:#e8185a}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    th{background:#e8185a;color:#fff;padding:7px 8px;text-align:left;font-size:11px;font-weight:700}
+    td{padding:6px 8px;border-bottom:1px solid #eee;font-size:11px;vertical-align:top}
+    tr:nth-child(even) td{background:#fafafa}
+    .green{color:#16a34a;font-weight:700}
+    .red{color:#dc2626;font-weight:700}
+    .right{text-align:right}
+    .total-row td{background:#fff0f5;font-weight:800;border-top:2px solid #e8185a}
+    .footer{font-size:10px;color:#999;text-align:center;margin-top:20px}
+    @media print{body{padding:12px}}
+  </style></head><body>
+  <h1>${S.shopName}</h1>
+  <div class="sub">${S.address} &nbsp;|&nbsp; ${S.ownerMobile} &nbsp;|&nbsp; Generated: ${new Date().toLocaleString('en-IN')} &nbsp;|&nbsp; Period: ${label}</div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-lbl">Bills</div><div class="stat-val">${rows.length}</div></div>
+    <div class="stat"><div class="stat-lbl">Revenue</div><div class="stat-val">₹${totRev.toLocaleString('en-IN')}</div></div>
+    <div class="stat"><div class="stat-lbl">Profit</div><div class="stat-val" style="color:#16a34a">₹${totProfit.toLocaleString('en-IN')}</div></div>
+    <div class="stat"><div class="stat-lbl">Margin</div><div class="stat-val" style="color:#16a34a">${avgMargin}%</div></div>
+    <div class="stat"><div class="stat-lbl">Discount</div><div class="stat-val" style="color:#dc2626">₹${totDisc.toLocaleString('en-IN')}</div></div>
+  </div>
+
+  <h2>📦 Item Analysis</h2>
+  <table>
+    <tr><th>Product</th><th class="right">Qty</th><th class="right">Revenue ₹</th><th class="right">Cost ₹</th><th class="right">Profit ₹</th><th class="right">Margin %</th></tr>
+    ${irows.map(([name,d])=>`<tr>
+      <td>${name}</td>
+      <td class="right">${d.qty}</td>
+      <td class="right">₹${Math.round(d.rev).toLocaleString('en-IN')}</td>
+      <td class="right">₹${Math.round(d.cost).toLocaleString('en-IN')}</td>
+      <td class="right ${d.profit>=0?'green':'red'}">${d.profit<0?'-':''}₹${Math.round(Math.abs(d.profit)).toLocaleString('en-IN')}</td>
+      <td class="right">${d.rev>0?Math.round(d.profit/d.rev*100):0}%</td>
+    </tr>`).join('')}
+    <tr class="total-row">
+      <td>TOTAL</td><td class="right">${irows.reduce((a,e)=>a+e[1].qty,0)}</td>
+      <td class="right">₹${Math.round(irows.reduce((a,e)=>a+e[1].rev,0)).toLocaleString('en-IN')}</td>
+      <td class="right">₹${Math.round(irows.reduce((a,e)=>a+e[1].cost,0)).toLocaleString('en-IN')}</td>
+      <td class="right green">₹${Math.round(irows.reduce((a,e)=>a+e[1].profit,0)).toLocaleString('en-IN')}</td>
+      <td class="right">${avgMargin}%</td>
+    </tr>
+  </table>
+
+  <h2>📋 Bill-wise Detail</h2>
+  <table>
+    <tr><th>Date</th><th>Bill</th><th>Staff</th><th>Customer</th><th>Items</th><th class="right">Final ₹</th><th class="right">Cost ₹</th><th class="right">Profit ₹</th><th class="right">Margin</th><th>Payment</th></tr>
+    ${rows.map(r=>`<tr>
+      <td>${r.Date} ${r.Time}</td>
+      <td>${r['Bill ID']}</td>
+      <td>${r.Staff}</td>
+      <td>${r.Customer}</td>
+      <td>${r.Items}</td>
+      <td class="right">₹${r['Final Amt ₹'].toLocaleString('en-IN')}</td>
+      <td class="right">₹${r['Cost ₹'].toLocaleString('en-IN')}</td>
+      <td class="right ${r['Profit ₹']>=0?'green':'red'}">${r['Profit ₹']<0?'-':''}₹${Math.abs(r['Profit ₹']).toLocaleString('en-IN')}</td>
+      <td class="right">${r['Margin %']}%</td>
+      <td>${r.Payment}${r['Due ₹']>0?' (Due ₹'+r['Due ₹'].toLocaleString('en-IN')+')':''}</td>
+    </tr>`).join('')}
+    <tr class="total-row">
+      <td colspan="5">TOTAL — ${rows.length} bills</td>
+      <td class="right">₹${totRev.toLocaleString('en-IN')}</td>
+      <td class="right">₹${Math.round(rows.reduce((a,r)=>a+r['Cost ₹'],0)).toLocaleString('en-IN')}</td>
+      <td class="right green">₹${totProfit.toLocaleString('en-IN')}</td>
+      <td class="right">${avgMargin}%</td>
+      <td>${totDue>0?'Due ₹'+totDue.toLocaleString('en-IN'):''}</td>
+    </tr>
+  </table>
+  <div class="footer">${S.shopName} · ${S.address} · Confidential — Owner Only</div>
+  </body></html>`;
+
+  const win = window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(()=>win.print(), 600);
+}
+// ===================== END EXPORT =====================
 
 loadTheme();
 init();
