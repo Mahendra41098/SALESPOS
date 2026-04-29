@@ -4,9 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Sales Tracker Pro</title>
-<!-- Firebase compat SDK – works in plain HTML, no build step -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<!-- Google Sheets sync via Apps Script Web App -->
 <style>
 :root{
   --bg:#1a0812;--surface:#26101c;--s2:#321523;--s3:#3e1b2c;
@@ -766,20 +764,33 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
     </div>
   </div>
 
-  <div class="sec">☁️ Cloud Sync (Firebase)</div>
+  <div class="sec">☁️ Cloud Sync (Google Sheets)</div>
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div>
-        <div style="font-size:13px;font-weight:700;color:var(--t)">Firebase Sync</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px" id="cloud-status-text">Checking...</div>
+        <div style="font-size:13px;font-weight:700;color:var(--t)">Google Sheets Sync</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px" id="cloud-status-text">Not connected</div>
       </div>
       <div id="cloud-status-icon" style="font-size:28px">⏳</div>
     </div>
+
+    <label>Apps Script Web App URL</label>
+    <input type="text" id="gs-url-input" placeholder="https://script.google.com/macros/s/.../exec"
+      style="font-size:12px;margin-bottom:8px"
+      oninput="previewGsUrl(this.value)">
+    <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px" onclick="saveGsUrl()">💾 Save & Connect</button>
+
     <div style="font-size:11px;color:var(--t2);margin-bottom:12px;padding:9px;background:var(--abg2);border-radius:8px;border:1px solid rgba(232,24,90,.2)">
-      All sales automatically sync to Firebase cloud. Open this app on any device and see the same data.
+      📋 <strong>Setup steps:</strong><br>
+      1. Open <a href="https://script.google.com" target="_blank" style="color:var(--a)">script.google.com</a> → New Project<br>
+      2. Paste the Apps Script code (copy from below)<br>
+      3. Deploy → New Deployment → Web App → Anyone → Deploy<br>
+      4. Copy the URL and paste above
     </div>
-    <button class="btn btn-ghost" style="margin-bottom:8px" onclick="manualSync()">🔄 Sync Now from Cloud</button>
-    <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px" onclick="migrateLocalToCloud()">☁️ Upload Local Sales → Firebase</button>
+
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="copyAppsScript()">📋 Copy Apps Script Code</button>
+    <button class="btn btn-ghost" style="margin-bottom:8px" onclick="manualSync()">🔄 Pull Latest from Sheets</button>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px" onclick="migrateLocalToCloud()">☁️ Upload Local Sales → Sheets</button>
   </div>
 
   <div class="sec">📲 Daily WhatsApp Summary</div>
@@ -876,7 +887,7 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
     <div style="text-align:center;padding:10px 0">
       <div style="font-size:36px;margin-bottom:12px">⚠️</div>
       <div style="font-size:16px;font-weight:800;color:var(--r);margin-bottom:8px">Clear All History?</div>
-      <div style="font-size:13px;color:var(--t2);margin-bottom:20px">This will permanently delete ALL sales from this device AND Firebase cloud. This cannot be undone.</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:20px">This will permanently delete ALL sales from this device AND Google Sheets. This cannot be undone.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <button class="btn btn-ghost" onclick="closeModal('clear-modal')">Cancel</button>
         <button class="btn btn-red" onclick="executeClearHistory()">Yes, Delete All</button>
@@ -1003,30 +1014,22 @@ function loadData() {
 function saveS() { try { localStorage.setItem('spt6_s', JSON.stringify(S)); } catch(e) {} }
 function saveSales() { try { localStorage.setItem('spt6_sales', JSON.stringify(sales)); } catch(e) {} }
 
-// ===================== FIREBASE SETUP =====================
-const firebaseConfig = {
-  apiKey: "AIzaSyBmeyYEzYB_lqRyLr3arSbTxaedWy18lZk",
-  authDomain: "sales-46346.firebaseapp.com",
-  projectId: "sales-46346",
-  storageBucket: "sales-46346.firebasestorage.app",
-  messagingSenderId: "448682237505",
-  appId: "1:448682237505:web:cfcaff3f316d56307570c0",
-  measurementId: "G-Q4C5KP2F1T"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const COLL = 'sales';
-let syncState = 'idle'; // idle | syncing | ok | error
+// ===================== GOOGLE SHEETS CONFIG =====================
+// Paste your Apps Script Web App URL below after deployment
+// See Settings → Cloud Sync tab for instructions
+let GS_URL = localStorage.getItem('spt6_gs_url') || '';
+const COLL = 'sales'; // used as sheet name via action param
+let syncState = 'idle';
 
 function setSyncState(state, msg) {
   syncState = state;
-  const badge  = document.getElementById('sync-badge');
-  const icon   = document.getElementById('cloud-status-icon');
-  const txt    = document.getElementById('cloud-status-text');
+  const badge = document.getElementById('sync-badge');
+  const icon  = document.getElementById('cloud-status-icon');
+  const txt   = document.getElementById('cloud-status-text');
   const map = {
-    idle:    { b:'⏳', i:'⏳', t:'Connecting...' },
-    syncing: { b:'🔄', i:'🔄', t:'Connecting to Firebase...' },
-    ok:      { b:'🟢', i:'✅', t: msg || 'Live — all devices in sync' },
+    idle:    { b:'⏳', i:'⏳', t:'Not connected — add Script URL in Settings' },
+    syncing: { b:'🔄', i:'🔄', t:'Syncing with Google Sheets...' },
+    ok:      { b:'🟢', i:'✅', t: msg || 'Synced with Google Sheets' },
     error:   { b:'❌', i:'❌', t: msg || 'Sync error — working offline' },
   };
   const m = map[state] || map.idle;
@@ -1035,7 +1038,36 @@ function setSyncState(state, msg) {
   if (txt)   txt.textContent   = m.t;
 }
 
-// Convert sale object → flat Firestore doc (no nested undefined)
+// ---- Google Sheets API helpers ----
+async function gsRequest(params) {
+  if (!GS_URL) { setSyncState('error', 'No Script URL — add it in Settings'); return null; }
+  const url = GS_URL + '?' + new URLSearchParams(params).toString();
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch(e) {
+    setSyncState('error', 'Sheets error: ' + e.message);
+    return null;
+  }
+}
+
+async function gsPost(body) {
+  if (!GS_URL) { setSyncState('error', 'No Script URL — add it in Settings'); return null; }
+  try {
+    const res = await fetch(GS_URL, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch(e) {
+    setSyncState('error', 'Sheets write error: ' + e.message);
+    return null;
+  }
+}
+
+// Convert sale → flat row for Sheets
 function saleToDoc(sale) {
   return {
     id:          sale.id,
@@ -1049,29 +1081,29 @@ function saleToDoc(sale) {
     discountAmt: sale.discountAmt || 0,
     discountPct: sale.discountPct || 0,
     finalAmt:    sale.finalAmt    || 0,
-    totalCost:   sale.totalCost   ?? null,
-    profit:      sale.profit      ?? null,
+    totalCost:   sale.totalCost   ?? '',
+    profit:      sale.profit      ?? '',
     payInfo:     JSON.stringify(sale.payInfo || {}),
-    savedAt:     firebase.firestore.FieldValue.serverTimestamp()
+    savedAt:     new Date().toISOString()
   };
 }
 
-// Convert Firestore doc → sale object
+// Convert Sheets row → sale object
 function docToSale(d) {
   return {
     id:          d.id,
     date:        d.date,
     salesman:    d.salesman,
-    custName:    d.custName,
-    custMobile:  d.custMobile,
-    note:        d.note,
+    custName:    d.custName    || '',
+    custMobile:  d.custMobile  || '',
+    note:        d.note        || '',
     items:       safeJSON(d.items, []),
-    itemsTotal:  d.itemsTotal,
-    discountAmt: d.discountAmt,
-    discountPct: d.discountPct,
-    finalAmt:    d.finalAmt,
-    totalCost:   d.totalCost,
-    profit:      d.profit,
+    itemsTotal:  parseFloat(d.itemsTotal)  || 0,
+    discountAmt: parseFloat(d.discountAmt) || 0,
+    discountPct: parseFloat(d.discountPct) || 0,
+    finalAmt:    parseFloat(d.finalAmt)    || 0,
+    totalCost:   d.totalCost !== '' ? parseFloat(d.totalCost) : null,
+    profit:      d.profit     !== '' ? parseFloat(d.profit)    : null,
     payInfo:     safeJSON(d.payInfo, {})
   };
 }
@@ -1128,35 +1160,37 @@ function saveSettPIN() {
   setTimeout(() => closeModal('change-sett-pass-modal'), 1200);
 }
 
-// ---- Push one sale to Firebase ----
+// ---- Push one sale to Google Sheets ----
 async function pushSaleToCloud(sale) {
-  try {
-    await db.collection(COLL).doc(sale.id).set(saleToDoc(sale));
-    // onSnapshot will update UI automatically on all devices
-  } catch(e) {
+  if (!GS_URL) return;
+  setSyncState('syncing');
+  const result = await gsPost({ action: 'upsertSale', data: saleToDoc(sale) });
+  if (result && result.status === 'ok') {
+    setSyncState('ok', `Saved · ${new Date().toLocaleTimeString('en-IN')}`);
+  } else {
     setSyncState('error', 'Save failed — stored locally');
-    console.error('Firebase push error:', e.message);
   }
 }
 
-// ---- Delete one sale from Firebase ----
+// ---- Delete one sale from Google Sheets ----
 async function deleteSaleFromCloud(id) {
-  try { await db.collection(COLL).doc(id).delete(); } catch(e) { console.error('Firebase delete error:', e.message); }
+  if (!GS_URL) return;
+  await gsPost({ action: 'deleteSale', id });
 }
 
-// ---- Push one exchange to Firebase ----
+// ---- Push one exchange to Google Sheets ----
 async function pushExchangeToCloud(exc) {
-  try {
-    await db.collection(EXC_COLL).doc(exc.id).set(excToDoc(exc));
-  } catch(e) { console.error('Exchange cloud push error:', e.message); }
+  if (!GS_URL) return;
+  await gsPost({ action: 'upsertExchange', data: excToDoc(exc) });
 }
 
-// ---- Delete one exchange from Firebase ----
+// ---- Delete one exchange from Google Sheets ----
 async function deleteExchangeFromCloud(id) {
-  try { await db.collection(EXC_COLL).doc(id).delete(); } catch(e) {}
+  if (!GS_URL) return;
+  await gsPost({ action: 'deleteExchange', id });
 }
 
-// ---- Convert exchange → Firestore flat doc ----
+// ---- Convert exchange → Sheets flat row ----
 function excToDoc(exc) {
   return {
     id:          exc.id,
@@ -1173,11 +1207,11 @@ function excToDoc(exc) {
     diffAmt:     exc.diffAmt     || 0,
     payMethod:   exc.payMethod   || '',
     reason:      exc.reason      || '',
-    savedAt:     firebase.firestore.FieldValue.serverTimestamp()
+    savedAt:     new Date().toISOString()
   };
 }
 
-// ---- Convert Firestore doc → exchange object ----
+// ---- Convert Sheets row → exchange object ----
 function docToExc(d) {
   return {
     id:          d.id,
@@ -1197,65 +1231,215 @@ function docToExc(d) {
   };
 }
 
-// ---- Real-time listeners (onSnapshot) ----
-let unsubSales = null;
-let unsubExchanges = null;
-
-function startRealtimeListeners() {
+// ---- Pull all sales from Google Sheets ----
+async function pullSalesFromCloud() {
+  if (!GS_URL) { setSyncState('idle'); return; }
   setSyncState('syncing');
-
-  // --- SALES listener ---
-  if (unsubSales) unsubSales(); // detach any previous listener
-  unsubSales = db.collection(COLL)
-    .orderBy('date', 'desc')
-    .limit(5000)
-    .onSnapshot(snap => {
-      sales = snap.docs.map(doc => docToSale(doc.data()));
-      saveSales(); // keep localStorage as offline backup
-      setSyncState('ok', `Live · ${sales.length} sales · ${new Date().toLocaleTimeString('en-IN')}`);
-
-      // Refresh whichever tabs are currently visible
-      const histActive = document.getElementById('page-history')?.classList.contains('active');
-      if (histActive) { renderHistoryStats(); renderHistory(); renderItemAnalysis(); }
-
-      // Always keep in-memory fresh so exchange fetch works
-    }, err => {
-      setSyncState('error', 'Realtime sync lost — working offline');
-      console.error('Sales snapshot error:', err.message);
-    });
-
-  // --- EXCHANGES listener ---
-  if (unsubExchanges) unsubExchanges();
-  unsubExchanges = db.collection(EXC_COLL)
-    .orderBy('date', 'desc')
-    .limit(2000)
-    .onSnapshot(snap => {
-      exchanges = snap.docs.map(doc => docToExc(doc.data()));
-      saveExchanges(); // local backup
-      const excActive = document.getElementById('page-exchange')?.classList.contains('active');
-      if (excActive) { renderExchangeHistory(); renderExcStats(); }
-    }, err => {
-      console.error('Exchanges snapshot error:', err.message);
-    });
+  const result = await gsRequest({ action: 'getSales' });
+  if (result && result.status === 'ok') {
+    sales = (result.data || []).map(docToSale).sort((a,b) => new Date(b.date) - new Date(a.date));
+    saveSales();
+    setSyncState('ok', `Synced · ${sales.length} sales · ${new Date().toLocaleTimeString('en-IN')}`);
+    const histActive = document.getElementById('page-history')?.classList.contains('active');
+    if (histActive) { renderHistoryStats(); renderHistory(); renderItemAnalysis(); }
+  }
 }
 
-// ---- Manual sync button — just reconnects the listeners ----
-function manualSync() {
-  startRealtimeListeners();
+// ---- Pull all exchanges from Google Sheets ----
+async function pullExchangesFromCloud() {
+  if (!GS_URL) return;
+  const result = await gsRequest({ action: 'getExchanges' });
+  if (result && result.status === 'ok') {
+    exchanges = (result.data || []).map(docToExc).sort((a,b) => new Date(b.date) - new Date(a.date));
+    saveExchanges();
+    const excActive = document.getElementById('page-exchange')?.classList.contains('active');
+    if (excActive) { renderExchangeHistory(); renderExcStats(); }
+  }
 }
 
-// ---- Migrate local → Firebase (one-time) ----
+// ---- Manual sync (pull latest from Sheets) ----
+async function manualSync() {
+  if (!GS_URL) {
+    setSyncState('error', 'No Script URL set — go to Settings');
+    return;
+  }
+  await Promise.all([pullSalesFromCloud(), pullExchangesFromCloud()]);
+}
+
+// ---- Migrate local → Google Sheets (one-time) ----
 async function migrateLocalToCloud() {
   const local = (() => { try { return JSON.parse(localStorage.getItem('spt6_sales') || '[]'); } catch(e) { return []; } })();
   if (!local.length) { alert('No local sales found to migrate.'); return; }
-  if (!confirm(`Upload ${local.length} local sales to Firebase? This will not delete local data.`)) return;
+  if (!GS_URL) { alert('Please set your Google Script URL in Settings first.'); return; }
+  if (!confirm(`Upload ${local.length} local sales to Google Sheets? This will not delete local data.`)) return;
   setSyncState('syncing');
   let count = 0;
   for (const sale of local) {
-    try { await db.collection(COLL).doc(sale.id).set(saleToDoc(sale)); count++; } catch(e) { console.error('Migrate error:', e.message); }
+    const r = await gsPost({ action: 'upsertSale', data: saleToDoc(sale) });
+    if (r && r.status === 'ok') count++;
   }
-  alert(`Done! ${count} of ${local.length} sales uploaded to Firebase.`);
-  // onSnapshot will automatically pick up the new docs
+  alert(`Done! ${count} of ${local.length} sales uploaded to Google Sheets.`);
+  await pullSalesFromCloud();
+}
+
+// ===================== GOOGLE SHEETS URL MANAGEMENT =====================
+function previewGsUrl(val) { /* live preview - no-op */ }
+
+function saveGsUrl() {
+  const url = document.getElementById('gs-url-input').value.trim();
+  if (!url.startsWith('https://script.google.com')) {
+    alert('Please enter a valid Apps Script Web App URL (starts with https://script.google.com)');
+    return;
+  }
+  GS_URL = url;
+  localStorage.setItem('spt6_gs_url', url);
+  alert('✅ URL saved! Pulling data from Google Sheets...');
+  manualSync();
+}
+
+function populateGsUrl() {
+  const inp = document.getElementById('gs-url-input');
+  if (inp && GS_URL) inp.value = GS_URL;
+}
+
+const APPS_SCRIPT_CODE = `// ====== C MORE Sales Tracker — Google Apps Script ======
+// Deploy as Web App: Execute as Me, Who has access: Anyone
+// Paste this in script.google.com → new project
+
+const SHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+
+const SALES_COLS = ['id','date','salesman','custName','custMobile','note','items',
+  'itemsTotal','discountAmt','discountPct','finalAmt','totalCost','profit','payInfo','savedAt'];
+const EXC_COLS = ['id','date','salesman','custName','custMobile','origBillId','type',
+  'returnItems','newItems','returnTotal','newTotal','diffAmt','payMethod','reason','savedAt'];
+
+function getOrCreateSheet(name, cols) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(cols);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function sheetToObjects(sh, cols) {
+  const data = sh.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  const headers = data[0];
+  return data.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = row[i] !== undefined ? String(row[i]) : ''; });
+    return obj;
+  });
+}
+
+function upsertRow(sh, cols, obj) {
+  const data = sh.getDataRange().getValues();
+  const idCol = 0; // first column is always 'id'
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(obj.id)) {
+      sh.getRange(i + 1, 1, 1, cols.length).setValues([cols.map(c => obj[c] !== undefined ? obj[c] : '')]);
+      return;
+    }
+  }
+  sh.appendRow(cols.map(c => obj[c] !== undefined ? obj[c] : ''));
+}
+
+function deleteRow(sh, id) {
+  const data = sh.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]) === String(id)) { sh.deleteRow(i + 1); return; }
+  }
+}
+
+function doGet(e) {
+  const action = e.parameter.action;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  try {
+    if (action === 'getSales') {
+      const sh = getOrCreateSheet('Sales', SALES_COLS);
+      return jsonOk(sheetToObjects(sh, SALES_COLS));
+    }
+    if (action === 'getExchanges') {
+      const sh = getOrCreateSheet('Exchanges', EXC_COLS);
+      return jsonOk(sheetToObjects(sh, EXC_COLS));
+    }
+    if (action === 'queryMobile') {
+      const mobile = e.parameter.mobile;
+      const sh = getOrCreateSheet('Sales', SALES_COLS);
+      const rows = sheetToObjects(sh, SALES_COLS).filter(r => r.custMobile === mobile);
+      return jsonOk(rows);
+    }
+    return jsonErr('Unknown action: ' + action);
+  } catch(err) {
+    return jsonErr(err.message);
+  }
+}
+
+function doPost(e) {
+  const body = JSON.parse(e.postData.contents);
+  const action = body.action;
+
+  try {
+    if (action === 'upsertSale') {
+      const sh = getOrCreateSheet('Sales', SALES_COLS);
+      upsertRow(sh, SALES_COLS, body.data);
+      return jsonOk(null);
+    }
+    if (action === 'deleteSale') {
+      const sh = getOrCreateSheet('Sales', SALES_COLS);
+      deleteRow(sh, body.id);
+      return jsonOk(null);
+    }
+    if (action === 'upsertExchange') {
+      const sh = getOrCreateSheet('Exchanges', EXC_COLS);
+      upsertRow(sh, EXC_COLS, body.data);
+      return jsonOk(null);
+    }
+    if (action === 'deleteExchange') {
+      const sh = getOrCreateSheet('Exchanges', EXC_COLS);
+      deleteRow(sh, body.id);
+      return jsonOk(null);
+    }
+    if (action === 'clearAll') {
+      const name = body.sheet === 'sales' ? 'Sales' : 'Exchanges';
+      const cols = body.sheet === 'sales' ? SALES_COLS : EXC_COLS;
+      const sh = getOrCreateSheet(name, cols);
+      if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+      return jsonOk(null);
+    }
+    return jsonErr('Unknown action: ' + action);
+  } catch(err) {
+    return jsonErr(err.message);
+  }
+}
+
+function jsonOk(data) {
+  return ContentService.createTextOutput(JSON.stringify({ status: 'ok', data }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function jsonErr(msg) {
+  return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: msg }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+`;
+
+function copyAppsScript() {
+  navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(() => {
+    alert('✅ Apps Script code copied! Now go to script.google.com and paste it.');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = APPS_SCRIPT_CODE;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('✅ Apps Script code copied!');
+  });
 }
 
 // ===================== INIT =====================
@@ -1279,8 +1463,14 @@ function init() {
   renderSalesmanFilter();
   loadSummarySettings();
   loadSettPass();
-  // Start real-time listeners — all devices stay in sync automatically
-  startRealtimeListeners();
+  populateGsUrl();
+  // Pull from Google Sheets on load (if URL configured)
+  if (GS_URL) {
+    pullSalesFromCloud();
+    pullExchangesFromCloud();
+  } else {
+    setSyncState('idle');
+  }
 }
 
 function updateNavBrand() {
@@ -1614,7 +1804,7 @@ function completeSale() {
   const sale = getSaleData(); if (!sale) return;
   sales.unshift(sale);
   saveSales();            // local backup — instant
-  pushSaleToCloud(sale);  // Firebase — async, non-blocking
+  pushSaleToCloud(sale);  // Google Sheets — async, non-blocking
   showBillModal(sale, true);
 }
 function previewBill() {
@@ -2093,7 +2283,7 @@ function viewSale(id) {
 
 function deleteSale() {
   if (!viewingSaleId || !confirm('Delete this sale permanently?')) return;
-  deleteSaleFromCloud(viewingSaleId);           // remove from Firebase
+  deleteSaleFromCloud(viewingSaleId);           // remove from Google Sheets
   sales = sales.filter(s=>s.id!==viewingSaleId);
   saveSales();                                  // update local backup
   closeModal('detail-modal'); renderHistoryStats(); renderHistory();
@@ -2156,13 +2346,13 @@ function removePayMethod(i) {
   renderPayMethodsSet(); renderSingleMethods(); renderSplitRows(); renderDueMethodSelect();
 }
 function clearHistory() {
-  if(!confirm('Delete ALL sales from device AND Firebase cloud?\nThis CANNOT be undone.'))return;
-  // Batch delete from Firebase (max 500 per batch, fine for typical shop use)
-  const batch = db.batch();
-  sales.forEach(s => batch.delete(db.collection(COLL).doc(s.id)));
-  batch.commit()
-    .then(()=>setSyncState('ok','All sales cleared from cloud'))
-    .catch(e=>{ setSyncState('error','Cloud delete failed — clear locally only'); console.error(e); });
+  if(!confirm('Delete ALL sales from device AND Google Sheets?\nThis CANNOT be undone.'))return;
+  // Delete from Google Sheets
+  if (GS_URL) {
+    gsPost({ action: 'clearAll', sheet: 'sales' })
+      .then(r => { if(r && r.status==='ok') setSyncState('ok','All sales cleared from Sheets'); else setSyncState('error','Cloud delete failed — cleared locally only'); })
+      .catch(e => setSyncState('error','Cloud delete failed'));
+  }
   sales=[]; saveSales(); renderHistoryStats(); renderHistory();
 }
 
@@ -2340,13 +2530,15 @@ async function fetchCustomerByMobile(mobile) {
       fetchedCustomer = { name: matches[0].custName, mobile, visits: matches.length };
       showFetchedCustomer(fetchedCustomer); icon.textContent = '✅'; return;
     }
-    const snap = await db.collection(COLL).where('custMobile','==',mobile).orderBy('date','desc').limit(1).get();
-    if (!snap.empty) {
-      const d = snap.docs[0].data();
-      if (d.custName) {
-        const countSnap = await db.collection(COLL).where('custMobile','==',mobile).get();
-        fetchedCustomer = { name: d.custName, mobile, visits: countSnap.size };
-        showFetchedCustomer(fetchedCustomer); icon.textContent = '✅'; return;
+    // Try Google Sheets if not found locally
+    if (GS_URL) {
+      const result = await gsRequest({ action: 'queryMobile', mobile });
+      if (result && result.status === 'ok' && result.data && result.data.length) {
+        const d = result.data[0];
+        if (d.custName) {
+          fetchedCustomer = { name: d.custName, mobile, visits: result.data.length };
+          showFetchedCustomer(fetchedCustomer); icon.textContent = '✅'; return;
+        }
       }
     }
     icon.textContent = '';
@@ -2370,9 +2562,11 @@ function confirmClearHistory() { openModal('clear-modal'); }
 
 function executeClearHistory() {
   closeModal('clear-modal');
-  const batch = db.batch();
-  sales.forEach(s => batch.delete(db.collection(COLL).doc(s.id)));
-  batch.commit().then(()=>setSyncState('ok','All cleared')).catch(e=>console.error(e));
+  if (GS_URL) {
+    gsPost({ action: 'clearAll', sheet: 'sales' })
+      .then(r => { if(r && r.status==='ok') setSyncState('ok','All cleared'); })
+      .catch(e => console.error(e));
+  }
   sales=[]; saveSales(); renderHistoryStats(); renderHistory();
 }
 
@@ -2693,15 +2887,12 @@ async function fetchExcCustomerBills(mobile) {
   // Search local sales first
   let found = sales.filter(s => s.custMobile === mobile);
 
-  // Also check Firebase if local is empty
-  if (!found.length) {
+  // Also check Google Sheets if local is empty
+  if (!found.length && GS_URL) {
     try {
-      const snap = await db.collection(COLL).where('custMobile','==',mobile).orderBy('date','desc').limit(20).get();
-      if (!snap.empty) {
-        found = snap.docs.map(doc => {
-          const d = doc.data();
-          return { ...docToSale(d), items: safeJSON(d.items, []) };
-        });
+      const result = await gsRequest({ action: 'queryMobile', mobile });
+      if (result && result.status === 'ok' && result.data && result.data.length) {
+        found = result.data.map(docToSale).sort((a,b) => new Date(b.date) - new Date(a.date));
       }
     } catch(e) { console.error('Exchange fetch error:', e.message); }
   } else {
