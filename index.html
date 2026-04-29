@@ -781,6 +781,7 @@ select.native{background:var(--s2);border:1.5px solid var(--b);border-radius:var
     <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px" onclick="saveGsUrl()">💾 Save & Connect</button>
 
     <div style="font-size:11px;color:var(--t2);margin-bottom:12px;padding:9px;background:var(--abg2);border-radius:8px;border:1px solid rgba(232,24,90,.2)">
+      🔄 <strong>Auto-syncs every 30 seconds</strong> when URL is set. All devices see live data. Pauses when tab is hidden to save quota.<br><br>
       📋 <strong>Setup steps:</strong><br>
       1. Open <a href="https://script.google.com" target="_blank" style="color:var(--a)">script.google.com</a> → New Project<br>
       2. Paste the Apps Script code (copy from below)<br>
@@ -1029,7 +1030,7 @@ function setSyncState(state, msg) {
   const map = {
     idle:    { b:'⏳', i:'⏳', t:'Not connected — add Script URL in Settings' },
     syncing: { b:'🔄', i:'🔄', t:'Syncing with Google Sheets...' },
-    ok:      { b:'🟢', i:'✅', t: msg || 'Synced with Google Sheets' },
+    ok:      { b:'🟢', i:'✅', t: msg || 'Auto-syncing every 30s · Google Sheets' },
     error:   { b:'❌', i:'❌', t: msg || 'Sync error — working offline' },
   };
   const m = map[state] || map.idle;
@@ -1266,6 +1267,62 @@ async function manualSync() {
   await Promise.all([pullSalesFromCloud(), pullExchangesFromCloud()]);
 }
 
+// ===================== AUTO-POLL EVERY 30 SECONDS =====================
+const POLL_INTERVAL = 30000; // 30 seconds
+let pollTimer = null;
+let pollCountdown = 30;
+let countdownTimer = null;
+
+function startAutoPoll() {
+  stopAutoPoll();
+  if (!GS_URL) return;
+
+  // Countdown ticker — updates badge every second
+  function tickCountdown() {
+    pollCountdown--;
+    const badge = document.getElementById('sync-badge');
+    if (badge && syncState === 'ok') {
+      badge.textContent = pollCountdown <= 5 ? '🔄' : '🟢';
+      badge.title = `Auto-sync in ${pollCountdown}s — tap to sync now`;
+    }
+    if (pollCountdown <= 0) pollCountdown = 30;
+    countdownTimer = setTimeout(tickCountdown, 1000);
+  }
+
+  // Main poll cycle
+  async function doPoll() {
+    if (document.hidden) { // skip when tab not visible (saves quota)
+      schedulePoll();
+      return;
+    }
+    pollCountdown = 30;
+    await Promise.all([pullSalesFromCloud(), pullExchangesFromCloud()]);
+    schedulePoll();
+  }
+
+  function schedulePoll() {
+    pollTimer = setTimeout(doPoll, POLL_INTERVAL);
+  }
+
+  pollCountdown = 30;
+  countdownTimer = setTimeout(tickCountdown, 1000);
+  schedulePoll();
+}
+
+function stopAutoPoll() {
+  if (pollTimer)     { clearTimeout(pollTimer);     pollTimer = null; }
+  if (countdownTimer){ clearTimeout(countdownTimer); countdownTimer = null; }
+}
+
+// Restart poll when tab becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && GS_URL) {
+    stopAutoPoll();
+    // Immediate sync when tab regains focus, then resume poll
+    Promise.all([pullSalesFromCloud(), pullExchangesFromCloud()]).then(() => startAutoPoll());
+  }
+});
+
 // ---- Migrate local → Google Sheets (one-time) ----
 async function migrateLocalToCloud() {
   const local = (() => { try { return JSON.parse(localStorage.getItem('spt6_sales') || '[]'); } catch(e) { return []; } })();
@@ -1293,8 +1350,8 @@ function saveGsUrl() {
   }
   GS_URL = url;
   localStorage.setItem('spt6_gs_url', url);
-  alert('✅ URL saved! Pulling data from Google Sheets...');
-  manualSync();
+  alert('✅ URL saved! Connecting to Google Sheets...');
+  manualSync().then(() => startAutoPoll());
 }
 
 function populateGsUrl() {
@@ -1464,10 +1521,9 @@ function init() {
   loadSummarySettings();
   loadSettPass();
   populateGsUrl();
-  // Pull from Google Sheets on load (if URL configured)
+  // Pull from Google Sheets on load, then auto-poll every 30s
   if (GS_URL) {
-    pullSalesFromCloud();
-    pullExchangesFromCloud();
+    Promise.all([pullSalesFromCloud(), pullExchangesFromCloud()]).then(() => startAutoPoll());
   } else {
     setSyncState('idle');
   }
