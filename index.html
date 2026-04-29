@@ -1361,15 +1361,28 @@ function populateGsUrl() {
 
 const APPS_SCRIPT_CODE = `// ====== C MORE Sales Tracker — Google Apps Script ======
 // Deploy as Web App: Execute as Me, Who has access: Anyone
-// Paste this in script.google.com → new project
+// Creates 3 sheets automatically:
+//   📋 Sales        — one row per BILL (for app sync)
+//   📦 Items        — one row per ITEM purchased (easy to read!)
+//   🔄 Exchanges    — returns & exchanges
 
-const SHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
-
+// ── Internal sync columns (app reads these) ──
 const SALES_COLS = ['id','date','salesman','custName','custMobile','note','items',
   'itemsTotal','discountAmt','discountPct','finalAmt','totalCost','profit','payInfo','savedAt'];
+
+// ── Items sheet columns (human-readable) ──
+const ITEMS_COLS = [
+  'Bill ID','Date','Time','Salesman','Customer Name','Customer Mobile',
+  'Product','Qty','Item Price ₹','Item Total ₹','Cost ₹','Item Profit ₹','Item Code',
+  'Bill Discount ₹','Bill Discount %','Bill Final ₹','Bill Total Cost ₹','Bill Profit ₹',
+  'Payment Mode','Payment Method','Balance Due ₹','Note','Saved At'
+];
+
+// ── Exchanges columns ──
 const EXC_COLS = ['id','date','salesman','custName','custMobile','origBillId','type',
   'returnItems','newItems','returnTotal','newTotal','diffAmt','payMethod','reason','savedAt'];
 
+// ── Sheet helpers ──
 function getOrCreateSheet(name, cols) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(name);
@@ -1377,6 +1390,11 @@ function getOrCreateSheet(name, cols) {
     sh = ss.insertSheet(name);
     sh.appendRow(cols);
     sh.setFrozenRows(1);
+    // Style the header row
+    const hdr = sh.getRange(1, 1, 1, cols.length);
+    hdr.setBackground('#e8185a');
+    hdr.setFontColor('#ffffff');
+    hdr.setFontWeight('bold');
   }
   return sh;
 }
@@ -1394,27 +1412,101 @@ function sheetToObjects(sh, cols) {
 
 function upsertRow(sh, cols, obj) {
   const data = sh.getDataRange().getValues();
-  const idCol = 0; // first column is always 'id'
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idCol]) === String(obj.id)) {
-      sh.getRange(i + 1, 1, 1, cols.length).setValues([cols.map(c => obj[c] !== undefined ? obj[c] : '')]);
+    if (String(data[i][0]) === String(obj[cols[0]])) {
+      sh.getRange(i + 1, 1, 1, cols.length)
+        .setValues([cols.map(c => obj[c] !== undefined ? obj[c] : '')]);
       return;
     }
   }
   sh.appendRow(cols.map(c => obj[c] !== undefined ? obj[c] : ''));
 }
 
-function deleteRow(sh, id) {
+function deleteRowById(sh, id) {
   const data = sh.getDataRange().getValues();
   for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][0]) === String(id)) { sh.deleteRow(i + 1); return; }
+    if (String(data[i][0]) === String(id)) { sh.deleteRow(i + 1); }
   }
 }
 
+// ── Expand one sale into item rows ──
+function saleToItemRows(sale) {
+  let items = [];
+  try { items = typeof sale.items === 'string' ? JSON.parse(sale.items) : (sale.items || []); } catch(e) {}
+
+  let payInfo = {};
+  try { payInfo = typeof sale.payInfo === 'string' ? JSON.parse(sale.payInfo) : (sale.payInfo || {}); } catch(e) {}
+
+  const d = new Date(sale.date);
+  const dateStr = d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+  const timeStr = d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+
+  const payMode   = payInfo.mode   || '';
+  const payMethod = payInfo.mode === 'split'
+    ? Object.keys(payInfo.breakdown || {}).join(' + ')
+    : (payInfo.method || '');
+  const balanceDue = payInfo.mode === 'due' ? (payInfo.balanceDue || 0) : 0;
+
+  const billDisc    = parseFloat(sale.discountAmt) || 0;
+  const billDiscPct = parseFloat(sale.discountPct) || 0;
+  const billFinal   = parseFloat(sale.finalAmt)    || 0;
+  const billCost    = sale.totalCost !== '' && sale.totalCost !== null ? parseFloat(sale.totalCost) : '';
+  const billProfit  = sale.profit    !== '' && sale.profit    !== null ? parseFloat(sale.profit)    : '';
+
+  const activeItems = items.filter(i => !i.cancelled && i.product);
+
+  if (!activeItems.length) {
+    // Bill with no items — still write one row
+    return [[
+      sale.id, dateStr, timeStr,
+      sale.salesman || '', sale.custName || '', sale.custMobile || '',
+      '—', 0, 0, 0, '', '',  '',
+      billDisc, billDiscPct.toFixed(2), billFinal, billCost, billProfit,
+      payMode, payMethod, balanceDue,
+      sale.note || '', sale.savedAt || ''
+    ]];
+  }
+
+  return activeItems.map(item => {
+    const qty       = item.qty   || 1;
+    const unitPrice = item.price || 0;
+    const itemTotal = unitPrice * qty;
+    const costPer   = item.costPerUnit !== undefined ? item.costPerUnit : (item.estimated ? '' : '');
+    const itemCost  = costPer !== '' ? costPer * qty : '';
+    const itemProfit = itemCost !== '' ? itemTotal - itemCost : '';
+
+    return [
+      sale.id, dateStr, timeStr,
+      sale.salesman || '', sale.custName || '', sale.custMobile || '',
+      item.product, qty, unitPrice, itemTotal,
+      itemCost, itemProfit, item.itemCode || '',
+      billDisc, billDiscPct.toFixed(2), billFinal, billCost, billProfit,
+      payMode, payMethod, balanceDue,
+      sale.note || '', sale.savedAt || ''
+    ];
+  });
+}
+
+// ── Delete all item rows for a bill ID from Items sheet ──
+function deleteItemRowsByBillId(itemsSh, billId) {
+  const data = itemsSh.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]) === String(billId)) itemsSh.deleteRow(i + 1);
+  }
+}
+
+// ── Write item rows for a sale (upsert) ──
+function upsertItemRows(itemsSh, sale) {
+  deleteItemRowsByBillId(itemsSh, sale.id);
+  const rows = saleToItemRows(sale);
+  rows.forEach(row => itemsSh.appendRow(row));
+}
+
+// ══════════════════════════════════════════
+//  doGet — read data (for app sync)
+// ══════════════════════════════════════════
 function doGet(e) {
   const action = e.parameter.action;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
   try {
     if (action === 'getSales') {
       const sh = getOrCreateSheet('Sales', SALES_COLS);
@@ -1427,8 +1519,7 @@ function doGet(e) {
     if (action === 'queryMobile') {
       const mobile = e.parameter.mobile;
       const sh = getOrCreateSheet('Sales', SALES_COLS);
-      const rows = sheetToObjects(sh, SALES_COLS).filter(r => r.custMobile === mobile);
-      return jsonOk(rows);
+      return jsonOk(sheetToObjects(sh, SALES_COLS).filter(r => r.custMobile === mobile));
     }
     return jsonErr('Unknown action: ' + action);
   } catch(err) {
@@ -1436,19 +1527,25 @@ function doGet(e) {
   }
 }
 
+// ══════════════════════════════════════════
+//  doPost — write data
+// ══════════════════════════════════════════
 function doPost(e) {
-  const body = JSON.parse(e.postData.contents);
+  const body   = JSON.parse(e.postData.contents);
   const action = body.action;
-
   try {
     if (action === 'upsertSale') {
-      const sh = getOrCreateSheet('Sales', SALES_COLS);
-      upsertRow(sh, SALES_COLS, body.data);
+      const salesSh = getOrCreateSheet('Sales', SALES_COLS);
+      const itemsSh = getOrCreateSheet('Items', ITEMS_COLS);
+      upsertRow(salesSh, SALES_COLS, body.data);   // keep internal sync row
+      upsertItemRows(itemsSh, body.data);           // expand to item rows
       return jsonOk(null);
     }
     if (action === 'deleteSale') {
-      const sh = getOrCreateSheet('Sales', SALES_COLS);
-      deleteRow(sh, body.id);
+      const salesSh = getOrCreateSheet('Sales', SALES_COLS);
+      const itemsSh = getOrCreateSheet('Items', ITEMS_COLS);
+      deleteRowById(salesSh, body.id);
+      deleteItemRowsByBillId(itemsSh, body.id);
       return jsonOk(null);
     }
     if (action === 'upsertExchange') {
@@ -1458,14 +1555,19 @@ function doPost(e) {
     }
     if (action === 'deleteExchange') {
       const sh = getOrCreateSheet('Exchanges', EXC_COLS);
-      deleteRow(sh, body.id);
+      deleteRowById(sh, body.id);
       return jsonOk(null);
     }
     if (action === 'clearAll') {
-      const name = body.sheet === 'sales' ? 'Sales' : 'Exchanges';
-      const cols = body.sheet === 'sales' ? SALES_COLS : EXC_COLS;
-      const sh = getOrCreateSheet(name, cols);
-      if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+      if (body.sheet === 'sales') {
+        const salesSh = getOrCreateSheet('Sales', SALES_COLS);
+        const itemsSh = getOrCreateSheet('Items', ITEMS_COLS);
+        if (salesSh.getLastRow() > 1) salesSh.deleteRows(2, salesSh.getLastRow() - 1);
+        if (itemsSh.getLastRow() > 1) itemsSh.deleteRows(2, itemsSh.getLastRow() - 1);
+      } else {
+        const sh = getOrCreateSheet('Exchanges', EXC_COLS);
+        if (sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+      }
       return jsonOk(null);
     }
     return jsonErr('Unknown action: ' + action);
